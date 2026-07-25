@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>FlytBase BDR Agent — Solution Flowchart</title>
+<style>
+  :root {
+    --bg: #0b0d12;
+    --panel: #131722;
+    --border: #232838;
+    --text: #e6e9f0;
+    --muted: #9aa3b5;
+    --accent: #6ee7b7;
+    --accent2: #93c5fd;
+    --accent3: #fca5a5;
+    --accent4: #fcd34d;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --border: #e2e6ee;
+      --text: #1a1d29;
+      --muted: #5b6472;
+      --accent: #059669;
+      --accent2: #2563eb;
+      --accent3: #dc2626;
+      --accent4: #b45309;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    padding: 32px 20px 60px;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 28px; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: stretch;
+  }
+  .row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    min-width: 190px;
+    max-width: 240px;
+    text-align: center;
+    font-size: 13.5px;
+    line-height: 1.35;
+  }
+  .box .t { font-weight: 600; display: block; margin-bottom: 4px; }
+  .box .d { color: var(--muted); font-size: 12px; }
+  .box.stage-account { border-color: var(--accent2); }
+  .box.stage-strategy { border-color: var(--accent4); }
+  .box.stage-parallel { border-color: var(--accent2); }
+  .box.stage-email { border-color: var(--accent); }
+  .box.stage-gate { border-color: var(--accent3); }
+  .box.stage-output { border-color: var(--accent); }
+
+  .arrow { color: var(--muted); font-size: 20px; flex-shrink: 0; }
+  .arrow.down { text-align: center; margin: 2px 0; }
+
+  .branch {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .loop-note {
+    text-align: center;
+    color: var(--accent4);
+    font-size: 12px;
+    font-style: italic;
+    margin: -2px 0 2px;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-top: 32px;
+  }
+  .panel h2 { font-size: 16px; margin: 0 0 10px; }
+  .panel p, .panel li { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
+  .panel ul { margin: 6px 0 0; padding-left: 20px; }
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 700px) {
+    .grid2 { grid-template-columns: 1fr; }
+    .box { max-width: 100%; }
+  }
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 18px;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>FlytBase BDR Agent — How It Works</h1>
+  <p class="sub">Campaign brief in (target vertical + SQM as anchor) → real accounts, contacts, research, and personalized emails out. Every box below is a real, running piece of code, not a diagram of an idea.</p>
+
+  <div class="flow">
+    <div class="row">
+      <div class="box stage-account">
+        <span class="t">Campaign Brief</span>
+        <span class="d">Vertical: LATAM lithium/copper/iron-ore mining. Anchor: SQM. Angle: autonomous drone inspection replacing contracted crews.</span>
+      </div>
+    </div>
+    <div class="arrow down">↓</div>
+
+    <div class="row">
+      <div class="box stage-account">
+        <span class="t">Account Agent</span>
+        <span class="d">Web-searches per commodity segment, scores every candidate against SQM (scale, hazard/24-7 ops, geography, tech adoption), drops anything unsourced or suppressed (existing customers).</span>
+      </div>
+    </div>
+    <div class="arrow down">↓</div>
+
+    <div class="row branch">
+      <div class="box stage-parallel">
+        <span class="t">Research Agent</span>
+        <span class="d">Grounded web search per account: recent news, hazard/24-7 context, contracted-crew evidence, best personalization hook. Every claim sourced or left honestly blank.</span>
+      </div>
+      <div class="box stage-parallel">
+        <span class="t">Contact Agent</span>
+        <span class="d">Finds sourced decision-makers across 4 role families (Operations, HSE, Site, Digital Transformation), diversified rather than picked by rank alone.</span>
+      </div>
+    </div>
+    <div class="arrow down">↓</div>
+
+    <div class="row">
+      <div class="box stage-strategy">
+        <span class="t">Strategy Agent — qualification gate</span>
+        <span class="d">Weighted score: ICP fit, evidence quality, operational pain, FlytBase mechanism relevance, contact readiness.</span>
+      </div>
+    </div>
+    <div class="loop-note">↻ if evidence is thin: one targeted extra research/contact pass, then re-score (bounded — never an unlimited loop)</div>
+    <div class="arrow down">↓ pursue</div>
+
+    <div class="row">
+      <div class="box stage-gate">
+        <span class="t">Email Finder</span>
+        <span class="d">Prospeo → Hunter waterfall, only ever runs on an already role-fit, sourced contact. Never invents an email — honest "not found" otherwise.</span>
+      </div>
+    </div>
+    <div class="arrow down">↓ email resolved</div>
+
+    <div class="row">
+      <div class="box stage-email">
+        <span class="t">Writer Agent (SMYKM)</span>
+        <span class="d">Specific sourced hook → real FlytBase proof point, mechanism-matched to the account's own signal → one soft, low-pressure question.</span>
+      </div>
+    </div>
+    <div class="arrow down">↓</div>
+
+    <div class="row">
+      <div class="box stage-email">
+        <span class="t">Critic Agent</span>
+        <span class="d">11-point SMYKM check. Fails → exactly one rewrite pass, anchored to the same facts. Deterministic code strips em dashes and forces failures=[] when it truly passed — never trusted to the prompt alone.</span>
+      </div>
+    </div>
+    <div class="arrow down">↓</div>
+
+    <div class="row">
+      <div class="box stage-output">
+        <span class="t">Persist + Feedback Loop</span>
+        <span class="d">Writes to the same production Supabase tables the live dashboard reads. A separate analytics pass aggregates real critic/strategy patterns across runs for a human to act on — never edits its own prompts.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--accent2)"></i> Discovery (accounts / research / contacts)</span>
+    <span><i class="dot" style="background:var(--accent4)"></i> Qualification gate + retry loop</span>
+    <span><i class="dot" style="background:var(--accent3)"></i> Deterministic guardrail step</span>
+    <span><i class="dot" style="background:var(--accent)"></i> Generation + output</span>
+  </div>
+
+  <div class="panel">
+    <h2>How I broke the problem down</h2>
+    <div class="grid2">
+      <div>
+        <p><strong>The hard constraint first.</strong> The brief's one disqualifier is fabricated data, so every stage was designed around "real source or honest gap," not around making the pipeline look complete.</p>
+        <p><strong>Then the four required stages</strong> (Account ID → Contact Discovery → Account Research → Personalized Email), each with its own model call plus a deterministic code pass that enforces what the prompt alone couldn't be trusted to hold (em dashes, suppression matching, role-fit filtering).</p>
+      </div>
+      <div>
+        <p><strong>Then the agentic layer on top:</strong> a Strategy Agent that's a real qualification gate (not just a ranking), a Planner that actually drives execution as a dependency graph, and a feedback loop that reports real patterns back to a human instead of auto-editing itself.</p>
+        <p><strong>Reasoning behind the human-in-the-loop choice:</strong> this project caught the same failure twice already, a rule left purely to the model quietly stopped being followed. Letting the system rewrite its own instructions unsupervised would be that same risk, one level up.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
