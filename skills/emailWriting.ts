@@ -79,7 +79,7 @@ STRUCTURE:
 1. Open with one specific, true detail about ${opts.account.company}'s actual operation from the research above. Not a generic industry observation.
 2. Use this transition into the pitch: "${transition}"
 3. Bring in this proof point naturally, adapted to fit, don't paste it verbatim: "${proof.line}" (source: ${proof.name})
-4. Frame the value through this angle: ${angle}.
+4. Lead with this angle: ${angle} - but ground it in what the research above actually says about ${opts.account.company}'s real challenges. If their specific situation genuinely calls for a second, closely-related angle, it's fine to touch on it too; don't bolt on unrelated benefits just to sound comprehensive, and don't force a single angle if it doesn't fit what you actually know about this account.
 5. Close with ONE small, easy-to-answer question. No "let's hop on a call this week" pressure, no multiple asks.
 
 SUBJECT LINE: write it as ${subjectStyle}, under 8 words, no clickbait.
@@ -87,7 +87,7 @@ SUBJECT LINE: write it as ${subjectStyle}, under 8 words, no clickbait.
 SENDER NAME: sign the email as "${sender}".
 
 HARD RULES:
-- 80 to 150 words in the body, excluding subject and signature.
+- Aim for roughly 80 to 150 words in the body, excluding subject and signature. This is a target, not a hard boundary - a little over or under is fine, don't pad or chop content just to hit an exact count.
 - No em dashes anywhere, use a period or comma instead.
 - No buzzwords: "synergy", "leverage", "revolutionize", "cutting-edge", "game-changer", "seamless".
 - No bracketed placeholders like [Company] or [Name], everything must be filled in for real.
