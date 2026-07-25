@@ -1,26 +1,32 @@
-// The actual orchestrator: wires Planner -> Strategy -> Research/Contacts ->
-// Email Finder -> Writer/Critic together, using the Scheduler for concurrency
-// and Shared Memory for intermediate persistence per run. This is the
-// runtime-layer equivalent of the old n8n canvas's node wiring, expressed as
-// code instead of a fixed visual chain, with the Strategy Agent's pursue-gate
-// actually skipping downstream work (real dynamic behavior the n8n version
-// never had).
+// The actual orchestrator. Execution is now genuinely driven by
+// agents/plannerAgent.ts's task graph via taskGraphExecutor.ts, not
+// hand-nested Promise.all calls - account-level and contact-level tasks
+// expand dynamically as their real counts become known, and everything runs
+// through the same Scheduler pools as before for concurrency/credit limits.
 //
-// Final results ARE now persisted into the same production tables
+// Final results are persisted into the same production tables
 // pipeline-review's frontend reads, via persistResults() / the existing
-// `import_run_results` RPC, whose exact payload shape was confirmed by
-// reading the real "Build Run Payload" node in flytbase-bdr-agent.n8n.json,
-// not guessed.
-import type { Account, CampaignBrief, Contact, ResearchBrief, RunSummary } from "../agents/types.js";
+// `import_run_results` RPC (contract confirmed against the real n8n node
+// code AND proven with a live round-trip test, not guessed).
+import type {
+  Account,
+  CampaignBrief,
+  Contact,
+  ResearchBrief,
+  RunSummary,
+  StrategyVerdict,
+} from "../agents/types.js";
 import { findAccounts } from "../agents/accountAgent.js";
 import { evaluateAccount } from "../agents/strategyAgent.js";
 import { researchAccount } from "../agents/researchAgent.js";
 import { findContacts } from "../agents/contactAgent.js";
 import { findEmailForContact } from "../agents/emailFinderAgent.js";
 import { writeAndCritiqueEmail } from "../agents/criticAgent.js";
+import { buildTaskGraph, expandAccountTasks, expandContactTasks, type TaskKind } from "../agents/plannerAgent.js";
 import { createRun, markRunDone, markRunFailed } from "../tools/supabase.js";
 import { setMemory, memoryKeys } from "./sharedMemory.js";
 import { defaultScheduler } from "./scheduler.js";
+import { runTaskGraph, type TaskContext, type TaskExecutor } from "./taskGraphExecutor.js";
 import { persistResults } from "./persistResults.js";
 
 export interface RunCampaignDeps {
@@ -38,83 +44,119 @@ export interface RunCampaignResult {
   researchByAccount: Record<string, ResearchBrief>;
 }
 
+const POOL_BY_KIND: Record<TaskKind, string> = {
+  find_accounts: "openai",
+  evaluate_strategy: "supabase", // no external API call, just the setMemory write
+  research_account: "openai",
+  find_contacts: "openai",
+  find_email: "prospeo",
+  write_and_critique_email: "openai",
+};
+
 export async function runCampaign(brief: CampaignBrief, deps: RunCampaignDeps): Promise<RunCampaignResult> {
   const runId = await createRun();
   const scheduler = defaultScheduler((pool, reason) => {
     console.warn(`[scheduler] skipped work on pool "${pool}": ${reason}`);
   });
 
+  const accountByKey = new Map<string, Account>();
   const contactsByAccount: Record<string, Contact[]> = {};
   const researchByAccount: Record<string, ResearchBrief> = {};
   const notFoundDetail: { company: string; reason: string }[] = [];
   let emailsGenerated = 0;
+  let accountsFound = 0;
+
+  const executors: Record<TaskKind, TaskExecutor> = {
+    find_accounts: async (_task, ctx: TaskContext) => {
+      const accounts = await findAccounts(runId, brief, deps);
+      accountsFound = accounts.length;
+      await setMemory(runId, memoryKeys.accounts(), accounts);
+      for (const account of accounts) accountByKey.set(account.company, account);
+      ctx.addTasks(expandAccountTasks(accounts.map((a) => a.company)));
+      return accounts;
+    },
+
+    evaluate_strategy: async (task) => {
+      const account = accountByKey.get(task.accountKey!)!;
+      const verdict = evaluateAccount(account);
+      await setMemory(runId, memoryKeys.strategy(task.accountKey!), verdict);
+      if (!verdict.pursue) {
+        notFoundDetail.push({ company: account.company, reason: `Strategy gate: ${verdict.reason}` });
+      }
+      return verdict;
+    },
+
+    research_account: async (task, ctx) => {
+      const account = accountByKey.get(task.accountKey!)!;
+      const verdict = ctx.results.get(`strategy:${task.accountKey}`) as StrategyVerdict;
+      if (!verdict.pursue) return null;
+      const research = await researchAccount(account, deps);
+      await setMemory(runId, memoryKeys.research(task.accountKey!), research);
+      researchByAccount[account.company] = research;
+      return research;
+    },
+
+    find_contacts: async (task, ctx) => {
+      const account = accountByKey.get(task.accountKey!)!;
+      const verdict = ctx.results.get(`strategy:${task.accountKey}`) as StrategyVerdict;
+      if (!verdict.pursue) return null;
+      const contacts = await findContacts(account, brief, deps);
+      await setMemory(runId, memoryKeys.contacts(task.accountKey!), contacts);
+      contactsByAccount[account.company] = contacts;
+      if (!contacts.length) {
+        notFoundDetail.push({ company: account.company, reason: "No role-fitting, sourced contacts found." });
+        return contacts;
+      }
+      ctx.addTasks(expandContactTasks(task.accountKey!, contacts.length));
+      return contacts;
+    },
+
+    find_email: async (task) => {
+      const account = accountByKey.get(task.accountKey!)!;
+      const contact = contactsByAccount[account.company][task.contactIndex!];
+      const resolved = await findEmailForContact(contact, account, deps);
+      contactsByAccount[account.company][task.contactIndex!] = resolved;
+      if (!resolved.email) {
+        notFoundDetail.push({ company: account.company, reason: `No email resolved for ${contact.name}` });
+      }
+      return resolved;
+    },
+
+    write_and_critique_email: async (task, ctx) => {
+      const account = accountByKey.get(task.accountKey!)!;
+      const contact = contactsByAccount[account.company][task.contactIndex!];
+      if (!contact.email) return null; // gate: never spend a write+critique call on an unreachable contact
+
+      const research = researchByAccount[account.company];
+      const draft = await writeAndCritiqueEmail({ account, contact, research, batchIndex: task.contactIndex!, deps });
+      if (!draft) {
+        notFoundDetail.push({
+          company: account.company,
+          reason: `Email drafting skipped for ${contact.name}, openai pool exhausted`,
+        });
+        return null;
+      }
+      await setMemory(runId, memoryKeys.emailDraft(`${task.accountKey}::${task.contactIndex}`), draft);
+      emailsGenerated += 1;
+      contactsByAccount[account.company][task.contactIndex!] = { ...contact, draft };
+      return draft;
+    },
+  };
 
   try {
-    const accounts = await scheduler.run("openai", () => findAccounts(runId, brief, deps));
-    if (!accounts) throw new Error("Account finding was skipped, openai pool exhausted before the run even started.");
-    await setMemory(runId, memoryKeys.accounts(), accounts);
-
-    await Promise.all(
-      accounts.map(async (account) => {
-        const verdict = evaluateAccount(account);
-        await setMemory(runId, memoryKeys.strategy(account.id ?? account.company), verdict);
-        if (!verdict.pursue) {
-          notFoundDetail.push({ company: account.company, reason: `Strategy gate: ${verdict.reason}` });
-          return;
-        }
-
-        const [research, contacts] = await Promise.all([
-          scheduler.run("openai", () => researchAccount(account, deps)),
-          scheduler.run("openai", () => findContacts(account, brief, deps)),
-        ]);
-        if (!research || !contacts) {
-          notFoundDetail.push({ company: account.company, reason: "openai pool exhausted during research/contacts" });
-          return;
-        }
-        await setMemory(runId, memoryKeys.research(account.id ?? account.company), research);
-        await setMemory(runId, memoryKeys.contacts(account.id ?? account.company), contacts);
-        researchByAccount[account.company] = research;
-
-        if (!contacts.length) {
-          notFoundDetail.push({ company: account.company, reason: "No role-fitting, sourced contacts found." });
-          return;
-        }
-
-        const resolvedContacts = await Promise.all(
-          contacts.map(async (contact, batchIndex): Promise<Contact> => {
-            const resolved = await scheduler.run("prospeo", () => findEmailForContact(contact, account, deps));
-            const withEmail = resolved ?? contact;
-            if (!withEmail.email) {
-              notFoundDetail.push({ company: account.company, reason: `No email resolved for ${contact.name}` });
-              return withEmail;
-            }
-
-            const draft = await scheduler.run("openai", () =>
-              writeAndCritiqueEmail({ account, contact: withEmail, research, batchIndex, deps })
-            );
-            if (!draft) {
-              notFoundDetail.push({ company: account.company, reason: `Email drafting skipped for ${contact.name}, openai pool exhausted` });
-              return withEmail;
-            }
-            await setMemory(runId, memoryKeys.emailDraft(contact.name), draft);
-            emailsGenerated += 1;
-            return { ...withEmail, draft };
-          })
-        );
-        contactsByAccount[account.company] = resolvedContacts;
-      })
-    );
+    await runTaskGraph(buildTaskGraph(), executors, scheduler, POOL_BY_KIND);
 
     const summary: RunSummary = {
       id: runId,
       status: "done",
-      accountsFound: accounts.length,
+      accountsFound,
       emailsGenerated,
       contactsNotFound: notFoundDetail.length,
       contactsNotFoundDetail: notFoundDetail,
       error: null,
     };
 
+    const accounts = Array.from(accountByKey.values());
     await persistResults(runId, { accounts, contactsByAccount, researchByAccount, summary });
     await markRunDone(runId, {
       accountsFound: summary.accountsFound,

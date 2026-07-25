@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "campaign": "node --env-file=.env --import tsx runtime/cli.ts"
+    "campaign": "node --env-file=.env --import tsx runtime/cli.ts",
+    "analyze": "node --env-file=.env --import tsx runtime/analyzeCli.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"

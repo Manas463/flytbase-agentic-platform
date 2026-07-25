@@ -15,13 +15,19 @@ interface CriticVerdict {
 }
 
 async function critique(emailText: string, deps: WriterAgentDeps): Promise<CriticVerdict> {
-  return structuredCall<CriticVerdict>({
+  const verdict = await structuredCall<CriticVerdict>({
     apiKey: deps.openaiApiKey,
     model: deps.model,
     input: buildCriticPrompt(emailText),
     schema: CRITIC_SCHEMA,
     schemaName: "critic_verdict",
   });
+  // The model unreliably follows "empty array if pass=true" (caught by
+  // runtime/runAnalytics.ts's first real report: a fully-passing draft still
+  // came back with all 11 checklist items dumped into failures, each labeled
+  // "PASS"). Prompt-only enforcement of this has already failed once, so
+  // enforce it here deterministically instead of asking nicely again.
+  return verdict.pass ? { pass: true, failures: [] } : verdict;
 }
 
 export async function writeAndCritiqueEmail(opts: {
