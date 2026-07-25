@@ -6,16 +6,12 @@
 // actually skipping downstream work (real dynamic behavior the n8n version
 // never had).
 //
-// NOT YET WIRED: writing final accounts/contacts/emails/research rows into the
-// existing production tables that pipeline-review's frontend reads. Those
-// exact column names live in pipeline-review/src/integrations/supabase/
-// types.ts, which is not available in this codebase, guessing column names
-// for a real production insert would risk silently writing wrong data, which
-// is exactly the kind of fabrication this whole project exists to prevent.
-// Read that file first and fill in `persistResults` below before relying on
-// this for a real run; until then, results live in `run_memory` (queryable,
-// just not yet shaped for the existing UI) and in the returned RunSummary.
-import type { Account, CampaignBrief, Contact, EmailDraft, RunSummary } from "../agents/types.js";
+// Final results ARE now persisted into the same production tables
+// pipeline-review's frontend reads, via persistResults() / the existing
+// `import_run_results` RPC, whose exact payload shape was confirmed by
+// reading the real "Build Run Payload" node in flytbase-bdr-agent.n8n.json,
+// not guessed.
+import type { Account, CampaignBrief, Contact, ResearchBrief, RunSummary } from "../agents/types.js";
 import { findAccounts } from "../agents/accountAgent.js";
 import { evaluateAccount } from "../agents/strategyAgent.js";
 import { researchAccount } from "../agents/researchAgent.js";
@@ -25,6 +21,7 @@ import { writeAndCritiqueEmail } from "../agents/criticAgent.js";
 import { createRun, markRunDone, markRunFailed } from "../tools/supabase.js";
 import { setMemory, memoryKeys } from "./sharedMemory.js";
 import { defaultScheduler } from "./scheduler.js";
+import { persistResults } from "./persistResults.js";
 
 export interface RunCampaignDeps {
   openaiApiKey: string;
@@ -37,8 +34,8 @@ export interface RunCampaignDeps {
 export interface RunCampaignResult {
   summary: RunSummary;
   accounts: Account[];
-  contactsByAccount: Record<string, Contact[]>;
-  emailsByContact: Record<string, EmailDraft>;
+  contactsByAccount: Record<string, Contact[]>; // each contact carries its resolved email + .draft, if any
+  researchByAccount: Record<string, ResearchBrief>;
 }
 
 export async function runCampaign(brief: CampaignBrief, deps: RunCampaignDeps): Promise<RunCampaignResult> {
@@ -48,8 +45,9 @@ export async function runCampaign(brief: CampaignBrief, deps: RunCampaignDeps): 
   });
 
   const contactsByAccount: Record<string, Contact[]> = {};
-  const emailsByContact: Record<string, EmailDraft> = {};
+  const researchByAccount: Record<string, ResearchBrief> = {};
   const notFoundDetail: { company: string; reason: string }[] = [];
+  let emailsGenerated = 0;
 
   try {
     const accounts = await scheduler.run("openai", () => findAccounts(runId, brief, deps));
@@ -75,20 +73,20 @@ export async function runCampaign(brief: CampaignBrief, deps: RunCampaignDeps): 
         }
         await setMemory(runId, memoryKeys.research(account.id ?? account.company), research);
         await setMemory(runId, memoryKeys.contacts(account.id ?? account.company), contacts);
-        contactsByAccount[account.company] = contacts;
+        researchByAccount[account.company] = research;
 
         if (!contacts.length) {
           notFoundDetail.push({ company: account.company, reason: "No role-fitting, sourced contacts found." });
           return;
         }
 
-        await Promise.all(
-          contacts.map(async (contact, batchIndex) => {
+        const resolvedContacts = await Promise.all(
+          contacts.map(async (contact, batchIndex): Promise<Contact> => {
             const resolved = await scheduler.run("prospeo", () => findEmailForContact(contact, account, deps));
             const withEmail = resolved ?? contact;
             if (!withEmail.email) {
               notFoundDetail.push({ company: account.company, reason: `No email resolved for ${contact.name}` });
-              return;
+              return withEmail;
             }
 
             const draft = await scheduler.run("openai", () =>
@@ -96,12 +94,14 @@ export async function runCampaign(brief: CampaignBrief, deps: RunCampaignDeps): 
             );
             if (!draft) {
               notFoundDetail.push({ company: account.company, reason: `Email drafting skipped for ${contact.name}, openai pool exhausted` });
-              return;
+              return withEmail;
             }
             await setMemory(runId, memoryKeys.emailDraft(contact.name), draft);
-            emailsByContact[contact.name] = draft;
+            emailsGenerated += 1;
+            return { ...withEmail, draft };
           })
         );
+        contactsByAccount[account.company] = resolvedContacts;
       })
     );
 
@@ -109,11 +109,13 @@ export async function runCampaign(brief: CampaignBrief, deps: RunCampaignDeps): 
       id: runId,
       status: "done",
       accountsFound: accounts.length,
-      emailsGenerated: Object.keys(emailsByContact).length,
+      emailsGenerated,
       contactsNotFound: notFoundDetail.length,
       contactsNotFoundDetail: notFoundDetail,
       error: null,
     };
+
+    await persistResults(runId, { accounts, contactsByAccount, researchByAccount, summary });
     await markRunDone(runId, {
       accountsFound: summary.accountsFound,
       emailsGenerated: summary.emailsGenerated,
@@ -121,10 +123,7 @@ export async function runCampaign(brief: CampaignBrief, deps: RunCampaignDeps): 
       contactsNotFoundDetail: notFoundDetail,
     });
 
-    // TODO: persistResults(runId, accounts, contactsByAccount, emailsByContact)
-    // once pipeline-review's real column names are available here.
-
-    return { summary, accounts, contactsByAccount, emailsByContact };
+    return { summary, accounts, contactsByAccount, researchByAccount };
   } catch (err) {
     await markRunFailed(runId, err instanceof Error ? err.message : String(err));
     throw err;

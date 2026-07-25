@@ -50,6 +50,15 @@ export async function markRunDone(runId: string, summary: {
   if (error) throw error;
 }
 
+/** Calls the existing `import_run_results(p_run_id, p_payload)` Postgres
+ * function, the same RPC the real n8n "Import Results" node already called.
+ * The payload shape is built by runtime/persistResults.ts, matching the real
+ * "Build Run Payload" node's output field-for-field, not guessed. */
+export async function importRunResults(runId: string, payload: unknown): Promise<void> {
+  const { error } = await getSupabase().rpc("import_run_results", { p_run_id: runId, p_payload: payload });
+  if (error) throw error;
+}
+
 export async function markRunFailed(runId: string, error: string) {
   const { error: dbError } = await getSupabase()
     .from("runs")

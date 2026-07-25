@@ -66,6 +66,7 @@ export interface Contact {
   emailConfidence: number | null;
   emailVerifiedStatus: string; // "valid" | "accept_all" | "invalid" | "unknown" | ""
   companyDomain: string;
+  draft?: EmailDraft; // attached once writerAgent/criticAgent produce one, avoids a fragile name-keyed lookup elsewhere
 }
 
 export interface EmailDraft {
