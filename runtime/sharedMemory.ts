@@ -52,5 +52,6 @@ export const memoryKeys = {
   research: (accountId: string) => `research:${accountId}`,
   contacts: (accountId: string) => `contacts:${accountId}`,
   emailDraft: (contactId: string) => `email_draft:${contactId}`,
+  followUps: (contactId: string) => `follow_ups:${contactId}`,
   reflection: (stage: string, id: string) => `reflection:${stage}:${id}`,
 };

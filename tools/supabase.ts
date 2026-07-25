@@ -59,6 +59,47 @@ export async function importRunResults(runId: string, payload: unknown): Promise
   if (error) throw error;
 }
 
+/** import_run_results only ever inserts one email per contact (matching the
+ * real n8n contract), so follow-up touches (sequence_index 1/2/3) are
+ * inserted directly here instead. The RPC returns void, no inserted IDs, so
+ * the contact's real DB id has to be looked up by (run_id, email) - reliable
+ * because follow-ups only ever get generated for a contact whose email was
+ * already resolved and already made it through the RPC once. */
+export async function getContactIdByEmail(runId: string, email: string): Promise<string | null> {
+  const { data, error } = await getSupabase()
+    .from("contacts")
+    .select("id")
+    .eq("run_id", runId)
+    .eq("email", email)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.id as string) ?? null;
+}
+
+export async function insertFollowUpEmail(row: {
+  runId: string;
+  contactId: string;
+  subject: string;
+  body: string;
+  signalUsed: string;
+  criticVerdict: string;
+  rewrittenAfterCritic: boolean;
+  sequenceIndex: number;
+}): Promise<void> {
+  const { error } = await getSupabase().from("emails").insert({
+    run_id: row.runId,
+    contact_id: row.contactId,
+    subject: row.subject,
+    body: row.body,
+    status: "ready",
+    signal_used: row.signalUsed,
+    critic_verdict: row.criticVerdict,
+    rewritten_after_critic: row.rewrittenAfterCritic,
+    sequence_index: row.sequenceIndex,
+  });
+  if (error) throw error;
+}
+
 export async function markRunFailed(runId: string, error: string) {
   const { error: dbError } = await getSupabase()
     .from("runs")

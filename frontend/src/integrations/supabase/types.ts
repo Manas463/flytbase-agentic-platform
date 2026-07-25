@@ -160,6 +160,7 @@ export type Database = {
           id: string
           rewritten_after_critic: boolean | null
           run_id: string
+          sequence_index: number
           signal_used: string | null
           status: string
           subject: string | null
@@ -173,6 +174,7 @@ export type Database = {
           id?: string
           rewritten_after_critic?: boolean | null
           run_id: string
+          sequence_index?: number
           signal_used?: string | null
           status?: string
           subject?: string | null
@@ -186,6 +188,7 @@ export type Database = {
           id?: string
           rewritten_after_critic?: boolean | null
           run_id?: string
+          sequence_index?: number
           signal_used?: string | null
           status?: string
           subject?: string | null

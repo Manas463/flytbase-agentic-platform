@@ -188,9 +188,15 @@ function AccountDetail() {
       </div>
       {emails.length === 0 && <p className="mt-6 text-muted-foreground">No drafts yet.</p>}
       <div className="mt-6 space-y-8">
-        {emails.map((e) => {
-          const contact = contacts.find((c) => c.id === e.contact_id);
-          return <EmailCard key={e.id} email={e} contact={contact} />;
+        {Object.entries(
+          emails.reduce<Record<string, Email[]>>((acc, e) => {
+            (acc[e.contact_id] ??= []).push(e);
+            return acc;
+          }, {}),
+        ).map(([contactId, touches]) => {
+          const contact = contacts.find((c) => c.id === contactId);
+          const sorted = [...touches].sort((a, b) => (a.sequence_index ?? 0) - (b.sequence_index ?? 0));
+          return <EmailCard key={contactId} emails={sorted} contact={contact} />;
         })}
       </div>
     </div>

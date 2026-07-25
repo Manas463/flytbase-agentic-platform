@@ -2,231 +2,469 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>FlytBase BDR Agent — Architecture &amp; Thinking</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FlytBase Agentic Platform — Complete Codebase Mind Map</title>
 <style>
-  :root{
-    --bg:#0a0c11; --panel:#111520; --panel2:#161b28; --border:#242a3a;
-    --text:#e8ebf2; --muted:#98a1b4;
-    --blue:#7dd3fc; --green:#6ee7b7; --amber:#fcd34d; --red:#fca5a5; --violet:#c4b5fd;
+  :root {
+    --bg: #090b10;
+    --panel: #11151e;
+    --panel-2: #161b26;
+    --border: #2a3140;
+    --text: #edf0f6;
+    --muted: #9aa5b8;
+    --violet: #c4b5fd;
+    --blue: #7dd3fc;
+    --green: #6ee7b7;
+    --amber: #fcd34d;
+    --red: #fca5a5;
   }
-  @media (prefers-color-scheme: light){
-    :root{
-      --bg:#f6f7fb; --panel:#fff; --panel2:#f0f2f7; --border:#dfe4ee;
-      --text:#161a26; --muted:#59617180;
-      --blue:#0369a1; --green:#047857; --amber:#a16207; --red:#b91c1c; --violet:#6d28d9;
-      --muted:#596171;
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f7fb;
+      --panel: #fff;
+      --panel-2: #eef2f7;
+      --border: #d8dee9;
+      --text: #171b25;
+      --muted: #5f6979;
+      --violet: #6d28d9;
+      --blue: #0369a1;
+      --green: #047857;
+      --amber: #a16207;
+      --red: #b91c1c;
     }
   }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
-    padding:28px 18px 70px;line-height:1.45}
-  .wrap{max-width:1180px;margin:0 auto}
-  h1{font-size:23px;margin:0 0 6px}
-  .sub{color:var(--muted);font-size:14px;margin:0 0 8px;max-width:900px}
-  .callout{border-left:3px solid var(--violet);background:var(--panel);padding:10px 14px;
-    font-size:13px;color:var(--muted);margin:16px 0 26px;border-radius:0 8px 8px 0}
-  .callout b{color:var(--text)}
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.45;
+  }
+  code, .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+  .wrap { width: min(1280px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 70px; }
+  header { text-align: center; max-width: 900px; margin: 0 auto 30px; }
+  h1 { margin: 0; font-size: clamp(25px, 4vw, 42px); letter-spacing: -.035em; }
+  header p { color: var(--muted); max-width: 760px; margin: 12px auto 0; }
+  .eyebrow { color: var(--violet); font: 700 11px/1.2 "SFMono-Regular", monospace; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 10px; }
+  .status-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .pill { border: 1px solid var(--border); border-radius: 999px; padding: 5px 10px; color: var(--muted); font-size: 11px; }
+  .pill.good { border-color: color-mix(in srgb, var(--green) 55%, var(--border)); color: var(--green); }
+  .pill.warn { border-color: color-mix(in srgb, var(--amber) 55%, var(--border)); color: var(--amber); }
+  section { margin-top: 42px; }
+  h2 { margin: 0 0 7px; font-size: 18px; }
+  .section-copy { color: var(--muted); margin: 0 0 18px; font-size: 13px; }
+  .board { border: 1px solid var(--border); background: var(--panel); border-radius: 16px; padding: 22px; overflow: hidden; }
+  .node { border: 1px solid var(--border); background: var(--panel-2); border-radius: 11px; padding: 13px 14px; min-width: 0; }
+  .node .tag { display: block; margin-bottom: 5px; color: var(--muted); font: 700 9px/1.2 "SFMono-Regular", monospace; letter-spacing: .11em; text-transform: uppercase; }
+  .node strong { display: block; font-size: 13px; }
+  .node p { color: var(--muted); font-size: 11.5px; margin: 5px 0 0; }
+  .node code { color: var(--text); font-size: 10.5px; overflow-wrap: anywhere; }
+  .blue { border-color: color-mix(in srgb, var(--blue) 60%, var(--border)); }
+  .blue strong { color: var(--blue); }
+  .green { border-color: color-mix(in srgb, var(--green) 60%, var(--border)); }
+  .green strong { color: var(--green); }
+  .amber { border-color: color-mix(in srgb, var(--amber) 65%, var(--border)); }
+  .amber strong { color: var(--amber); }
+  .violet { border-color: color-mix(in srgb, var(--violet) 65%, var(--border)); }
+  .violet strong { color: var(--violet); }
+  .red { border-color: color-mix(in srgb, var(--red) 55%, var(--border)); }
+  .red strong { color: var(--red); }
+  .arrow { display: grid; place-items: center; color: var(--muted); font: 700 11px/1 "SFMono-Regular", monospace; text-align: center; }
+  .arrow b { color: var(--violet); font-weight: 600; }
 
-  h2{font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
-    margin:34px 0 14px;font-weight:600}
+  /* Whole-system map */
+  .system-flow { display: grid; grid-template-columns: 1fr 45px 1.25fr 45px 1.25fr 45px 1.25fr 45px 1fr; align-items: stretch; gap: 0; }
+  .system-flow .node { display: flex; flex-direction: column; justify-content: center; min-height: 155px; }
+  .under-flow { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .connection-note { margin-top: 14px; padding: 11px 13px; border-left: 3px solid var(--amber); background: color-mix(in srgb, var(--amber) 7%, transparent); color: var(--muted); font-size: 12px; }
+  .connection-note b { color: var(--amber); }
 
-  .box{background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:11px 13px}
-  .box .t{font-weight:600;font-size:13.5px;display:block}
-  .box .d{color:var(--muted);font-size:11.5px;display:block;margin-top:4px}
-  .box .tag{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
-    display:block;margin-bottom:5px}
-  .b-blue{border-color:var(--blue)} .b-green{border-color:var(--green)}
-  .b-amber{border-color:var(--amber)} .b-red{border-color:var(--red)}
-  .b-violet{border-color:var(--violet)}
+  /* Runtime */
+  .runtime { display: grid; grid-template-columns: 1fr 38px 1.2fr 38px 1.25fr 38px 1.2fr; align-items: center; }
+  .parallel { display: grid; gap: 9px; }
+  .strategy-outcomes { display: grid; gap: 8px; }
+  .outcome { padding: 9px 10px; border: 1px dashed var(--border); border-radius: 8px; font-size: 11px; color: var(--muted); }
+  .outcome b { display: inline-block; min-width: 118px; font-family: "SFMono-Regular", monospace; font-size: 10px; }
+  .outcome.go b { color: var(--green); }
+  .outcome.loop b { color: var(--amber); }
+  .outcome.stop b { color: var(--red); }
+  .loop-band { margin-top: 14px; border: 1px dashed var(--amber); background: color-mix(in srgb, var(--amber) 6%, transparent); border-radius: 10px; padding: 12px 14px; font-size: 12px; color: var(--muted); }
+  .loop-band b { color: var(--amber); }
+  .score-grid { margin-top: 12px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .score { text-align: center; border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 10px; color: var(--muted); }
+  .score b { display: block; color: var(--text); font-size: 14px; }
 
-  .arrow{color:var(--muted);text-align:center;font-size:16px;margin:5px 0}
+  /* Repo anatomy */
+  .repo-root { border: 2px solid var(--violet); border-radius: 12px; padding: 15px; text-align: center; color: var(--violet); font-weight: 700; }
+  .trunk { width: 2px; height: 22px; background: var(--violet); margin: 0 auto; opacity: .6; }
+  .folder-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; position: relative; }
+  .folder-grid::before { content: ""; position: absolute; left: 12%; right: 12%; top: -12px; height: 1px; background: var(--violet); opacity: .45; }
+  .folder { min-height: 165px; }
+  .folder ul { padding: 0; margin: 9px 0 0; list-style: none; color: var(--muted); font-size: 10.5px; }
+  .folder li { margin-top: 5px; overflow-wrap: anywhere; }
+  .folder li::before { content: "↳ "; color: var(--border); }
 
-  /* main two-column: pipeline + shared memory rail */
-  .layout{display:grid;grid-template-columns:1fr 290px;gap:20px;align-items:start}
-  @media (max-width:880px){.layout{grid-template-columns:1fr}}
+  /* State and safeguards */
+  .two-col { display: grid; grid-template-columns: 1.25fr .75fr; gap: 14px; }
+  .state-flow { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; align-items: center; }
+  .state { border: 1px solid var(--border); border-radius: 8px; padding: 9px; text-align: center; font-size: 10px; color: var(--muted); }
+  .state b { display: block; color: var(--text); font-size: 11px; margin-bottom: 2px; }
+  .guard-list { display: grid; gap: 8px; }
+  .guard { border-left: 3px solid var(--red); background: var(--panel-2); padding: 9px 11px; color: var(--muted); font-size: 11px; }
+  .guard b { color: var(--text); }
+  .legend { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 10px; }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  footer { color: var(--muted); text-align: center; font-size: 10px; margin-top: 38px; }
 
-  .rail{position:sticky;top:18px}
-  .rail .box{margin-bottom:10px}
-  .keylist{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
-    color:var(--muted);margin:7px 0 0;padding-left:14px}
-  .keylist li{margin:3px 0}
-
-  /* fan-out */
-  .fan{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px}
-  .lane{background:var(--panel2);border:1px dashed var(--border);border-radius:10px;padding:11px}
-  .lane .lanehead{font-size:11px;letter-spacing:.05em;text-transform:uppercase;
-    color:var(--muted);margin-bottom:9px}
-  .par{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  @media (max-width:560px){.par{grid-template-columns:1fr}}
-
-  .loop{border:1px dashed var(--amber);border-radius:9px;padding:10px 12px;margin:9px 0;
-    background:color-mix(in oklab,var(--amber) 8%,transparent)}
-  .loop .lt{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);
-    font-weight:600;margin-bottom:5px}
-  .loop p{margin:0;font-size:12px;color:var(--muted)}
-
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  @media (max-width:760px){.grid2{grid-template-columns:1fr}}
-
-  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
-  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)}
-  th{color:var(--muted);font-weight:600;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase}
-  td.mono{font-family:ui-monospace,Menlo,monospace;font-size:11px}
-
-  .legend{display:flex;gap:15px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin:14px 0 0}
-  .legend span{display:inline-flex;align-items:center;gap:6px}
-  .dot{width:9px;height:9px;border-radius:50%}
-  .why{font-size:12.5px;color:var(--muted);margin-top:9px;padding-left:11px;
-    border-left:2px solid var(--border)}
+  @media (max-width: 1000px) {
+    .system-flow { grid-template-columns: 1fr; gap: 8px; }
+    .system-flow .arrow { min-height: 22px; }
+    .system-flow .arrow::after { content: "↓"; }
+    .system-flow .arrow > span { display: none; }
+    .under-flow, .folder-grid { grid-template-columns: 1fr 1fr; }
+    .folder-grid::before { display: none; }
+    .runtime { grid-template-columns: 1fr; gap: 8px; }
+    .runtime > .arrow { min-height: 20px; }
+    .runtime > .arrow::after { content: "↓"; }
+    .score-grid { grid-template-columns: 1fr 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+    .state-flow { grid-template-columns: 1fr 1fr 1fr; }
+  }
+  @media (max-width: 620px) {
+    .wrap { width: min(100% - 20px, 1280px); padding-top: 24px; }
+    .board { padding: 14px; }
+    .under-flow, .folder-grid, .score-grid { grid-template-columns: 1fr; }
+    .state-flow { grid-template-columns: 1fr 1fr; }
+  }
+  @media print {
+    :root { --bg: #fff; --panel: #fff; --panel-2: #f7f8fa; --border: #bbb; --text: #111; --muted: #444; }
+    .wrap { width: 100%; padding: 0; }
+    section { break-inside: avoid; margin-top: 22px; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
+<main class="wrap">
+  <header>
+    <div class="eyebrow">Complete codebase mind map</div>
+    <h1>FlytBase Agentic Outbound Platform</h1>
+    <p>How the browser, backend, Planner, specialized agents, external providers, Supabase, feedback loops, and repository folders fit together.</p>
+    <div class="status-row">
+      <span class="pill good">Single consolidated repository</span>
+      <span class="pill good">TypeScript agent runtime implemented</span>
+      <span class="pill good">Human-reviewed sending only</span>
+      <span class="pill warn">Frontend retains n8n fallback URL</span>
+    </div>
+  </header>
 
-  <h1>FlytBase BDR Outbound Agent — architecture &amp; reasoning</h1>
-  <p class="sub">Input: a campaign brief (target vertical + reference account). Output: real qualified accounts, sourced decision-makers, researched context, and personalized cold emails. Every box below is running code in this repo.</p>
-
-  <div class="callout">
-    <b>The one design constraint everything else follows from:</b> fabricated data is an automatic disqualifier. So the architecture is built to <b>refuse to guess</b> — an account with no source is dropped, a contact with no evidence URL is dropped, an email that can't be resolved is reported as not-found, and a thin account is sent back for more research rather than assumed either way.
-  </div>
-
-  <h2>1 · The execution graph is built at runtime, not fixed</h2>
-  <p class="sub">The Planner does <b>not</b> emit a static pipeline. It starts with a single task and the graph <b>grows as facts arrive</b> — because how many accounts exist, and how many contacts each has, is unknowable until the search actually runs.</p>
-
-  <div class="layout">
-    <div>
-      <div class="box b-violet">
-        <span class="tag">Planner · buildTaskGraph()</span>
-        <span class="t">Graph starts with exactly 1 task</span>
-        <span class="d">A dependency-aware executor runs it. Any task may call <code>ctx.addTasks()</code> mid-flight to expand the graph. No busy-polling, no fixed stage barriers — a task starts the moment <em>its own</em> dependencies resolve, not when a whole stage finishes.</span>
+  <section>
+    <h2>1. Whole system: request to visible result</h2>
+    <p class="section-copy">The frontend triggers work, the backend returns a run ID immediately, the runtime continues in the background, and Supabase is the bridge back to the UI.</p>
+    <div class="board">
+      <div class="system-flow">
+        <div class="node blue">
+          <span class="tag">Person</span>
+          <strong>User</strong>
+          <p>Signs in, enters a target vertical and reference account, then clicks <b>Run campaign</b>.</p>
+        </div>
+        <div class="arrow"><span>→</span></div>
+        <div class="node blue">
+          <span class="tag">frontend/ · React + TanStack Start</span>
+          <strong>Portal</strong>
+          <p>POSTs JSON to <code>VITE_RUN_CAMPAIGN_URL</code>, then polls the Supabase <code>runs</code> table every four seconds.</p>
+        </div>
+        <div class="arrow"><span>→ POST</span></div>
+        <div class="node violet">
+          <span class="tag">backend/server.ts · Node HTTP</span>
+          <strong>Backend entrypoint</strong>
+          <p><code>POST /run-campaign</code> creates a run, returns <code>{ id }</code> immediately, and starts the long-running campaign in the background.</p>
+        </div>
+        <div class="arrow"><span>→ background</span></div>
+        <div class="node amber">
+          <span class="tag">runtime/ + agents/</span>
+          <strong>Agentic runtime</strong>
+          <p>The Planner grows a dependency-aware task graph, schedules agents, records memory, qualifies accounts, and builds drafts.</p>
+        </div>
+        <div class="arrow"><span>→ write</span></div>
+        <div class="node green">
+          <span class="tag">Supabase</span>
+          <strong>Shared state + product data</strong>
+          <p><code>runs</code>, <code>accounts</code>, <code>research</code>, <code>contacts</code>, <code>emails</code>, plus <code>run_memory</code>.</p>
+        </div>
       </div>
-      <div class="arrow">↓</div>
 
-      <div class="box b-blue">
-        <span class="tag">Account Agent · 3 commodity segments searched concurrently</span>
-        <span class="t">Finds real companies resembling the anchor</span>
-        <span class="d">Scored vs. SQM: scale 40% · hazard &amp; 24/7 ops 30% · geography 20% · tech adoption 10%. Then <b>code, not the model</b>, enforces: must have real source URLs · geography confirmed by <em>operations</em> not HQ · fuzzy-matched suppression of existing customers · domain dedupe.</span>
+      <div class="under-flow">
+        <div class="node">
+          <span class="tag">Frontend reads</span>
+          <strong>Dashboard pages</strong>
+          <p>Run status, sourced accounts, dossiers, contacts, drafts, critic status, and aggregate analytics.</p>
+        </div>
+        <div class="node">
+          <span class="tag">Runtime calls</span>
+          <strong>External providers</strong>
+          <p>OpenAI web search and generation · Tavily LinkedIn search · Prospeo and Hunter email resolution.</p>
+        </div>
+        <div class="node">
+          <span class="tag">Human gate</span>
+          <strong>Review and manual Gmail handoff</strong>
+          <p>The product generates drafts but never sends autonomously. The Gmail action only appears when an email exists.</p>
+        </div>
       </div>
-      <p class="why">Suppression is fuzzy-matched because a real leak happened: “Anglo American – Minas-Rio” slipped past an exact-match filter for “Anglo American”.</p>
-      <div class="arrow">↓ graph expands: <b>3 new tasks per account discovered</b></div>
 
-      <h2 style="margin-top:22px">2 · Per-account lanes run in parallel, each with its own gate</h2>
-      <div class="fan">
-        <div class="lane">
-          <div class="lanehead">Account lane 1</div>
-          <div class="par">
-            <div class="box b-blue"><span class="t">Research</span><span class="d">news, hazard/24-7, crew reliance, best hook — each sourced</span></div>
-            <div class="box b-blue"><span class="t">Contacts</span><span class="d">2 independent channels: web search + LinkedIn-restricted</span></div>
+      <div class="connection-note">
+        <b>Migration switch:</b> the browser uses the new backend when <code>VITE_RUN_CAMPAIGN_URL</code> is configured. If it is missing, the current frontend code falls back to the legacy n8n Cloud webhook. Supabase remains the shared database in either path.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. Inside one campaign run</h2>
+    <p class="section-copy">The graph begins with one task. Account and contact counts are discovered at runtime, so downstream tasks are added dynamically instead of being hardcoded up front.</p>
+    <div class="board">
+      <div class="runtime">
+        <div class="node blue">
+          <span class="tag">Account Agent</span>
+          <strong>Find and validate real accounts</strong>
+          <p>Search lithium, copper and iron ore segments. Score against the anchor. Enforce grounded URLs, LATAM operations, suppression, domain dedupe, then keep the top accounts.</p>
+        </div>
+        <div class="arrow"><span>→ fan out</span></div>
+        <div class="parallel">
+          <div class="node blue">
+            <span class="tag">Research Agent</span>
+            <strong>Build a sourced account brief</strong>
+            <p>News, footprint, hazards, contractors, technology signals and a citable personalization hook.</p>
           </div>
-          <div class="arrow">↓ both must land</div>
-          <div class="box b-amber"><span class="t">Strategy gate</span><span class="d">scores 5 criteria → pursue / retry / reject</span></div>
-          <div class="arrow">↓ pursue</div>
-          <div class="box b-green"><span class="t">Per-contact fan-out</span><span class="d">email → write → critique</span></div>
-        </div>
-        <div class="lane">
-          <div class="lanehead">Account lane 2</div>
-          <div class="par">
-            <div class="box b-blue"><span class="t">Research</span><span class="d">running independently</span></div>
-            <div class="box b-blue"><span class="t">Contacts</span><span class="d">running independently</span></div>
+          <div class="node blue">
+            <span class="tag">Contact Agent</span>
+            <strong>Find role-fitting people</strong>
+            <p>OpenAI web search + Tavily LinkedIn search. Keep sourced Operations, HSE, Site and Digital Transformation leaders.</p>
           </div>
-          <div class="arrow">↓</div>
-          <div class="box b-amber"><span class="t">Strategy gate</span><span class="d">may loop back while lane 1 is already writing emails</span></div>
         </div>
-        <div class="lane">
-          <div class="lanehead">Account lanes 3…8</div>
-          <div class="box"><span class="t">…same shape, all concurrent</span><span class="d">Lanes never wait on each other. Wall-clock is the slowest single lane, not the sum of stages. A full 8-account run completes in ~90 seconds.</span></div>
+        <div class="arrow"><span>→ both ready</span></div>
+        <div class="node amber">
+          <span class="tag">Strategy Agent · deterministic gate</span>
+          <strong>Should we pursue this account?</strong>
+          <p>Scores five explainable criteria. The LLM gathers evidence, but code owns the threshold and cannot waive missing evidence.</p>
+          <div class="score-grid">
+            <div class="score"><b>30</b>ICP fit</div>
+            <div class="score"><b>20</b>Evidence</div>
+            <div class="score"><b>20</b>Ops pain</div>
+            <div class="score"><b>20</b>Relevance</div>
+            <div class="score"><b>10</b>Contacts</div>
+          </div>
+        </div>
+        <div class="arrow"><span>→ verdict</span></div>
+        <div class="strategy-outcomes">
+          <div class="outcome go"><b>pursue</b> Score ≥ 70 and no critical evidence gap.</div>
+          <div class="outcome loop"><b>needs_more_research</b> Name the exact gaps and responsible agents.</div>
+          <div class="outcome stop"><b>reject</b> Hard rule failed, score stayed low, or retry was exhausted.</div>
         </div>
       </div>
-      <p class="why">This is the concrete difference from the original n8n canvas: there, every stage was a barrier — <em>all</em> accounts finished research before <em>any</em> contact search began. Here, lane 2 can still be re-researching while lane 1 is already drafting email #2.</p>
 
-      <h2>3 · Two feedback loops</h2>
-
-      <div class="loop">
-        <div class="lt">↻ Loop A — inside a run · Strategy ⇄ Research/Contacts · bounded to 1 retry</div>
-        <p>The gate scores <b>ICP fit · evidence quality · operational pain · FlytBase mechanism relevance · contact readiness</b>. Below threshold, it doesn't guess and doesn't reject — it emits <b>named evidence gaps</b>, each with an owning agent and a specific research question, and the Planner injects <em>targeted</em> follow-up tasks (<code>research_strategy_gaps</code> / <code>search_strategy_contacts</code>) for only the gaps that exist. Then it re-scores. Bounded to one retry on purpose: adaptation must not become an unbounded credit-spending loop.</p>
+      <div class="loop-band">
+        <b>Evidence-gap learning loop:</b> Strategy emits a gap ID, description, priority, owner and targeted research question → Planner adds only the necessary Research and/or Contact task → grounded findings are merged → Strategy scores the account again. Maximum one retry, so learning never becomes an unlimited credit loop.
       </div>
 
-      <div class="loop">
-        <div class="lt">↻ Loop B — inside a run · Writer ⇄ Critic · exactly 1 rewrite</div>
-        <p>An independent critic scores the draft against an 11-point SMYKM checklist. On failure the rewrite reuses the <em>original</em> writer prompt verbatim plus the specific failures, so it stays anchored to the same real facts instead of drifting to a fresh invention. If it still fails, it ships <b>flagged</b> rather than silently — a human sees the verdict.</p>
-      </div>
-
-      <div class="loop" style="border-color:var(--violet);background:color-mix(in oklab,var(--violet) 8%,transparent)">
-        <div class="lt" style="color:var(--violet)">↻ Loop C — across runs · machine reports, human decides</div>
-        <p>A separate analytics pass reads many past runs out of shared memory and aggregates what actually went wrong: which checklist items fail most, which evidence gaps recur, how many accounts were saved by the retry loop, why contacts went unreachable. <b>It deliberately does not edit its own prompts or thresholds.</b> This project twice watched a rule quietly stop being followed when it was left to the model alone; letting the system silently rewrite its own instructions is that same failure one level up. A human reads the report and changes <code>skills/</code>.</p>
-      </div>
-      <p class="why">Loop C's very first real report immediately earned its keep: it caught the critic returning all 11 checklist items as “failures” (each labelled PASS) on emails that had actually passed — a bug invisible from any single run.</p>
-    </div>
-
-    <!-- shared memory rail -->
-    <div class="rail">
-      <div class="box b-green">
-        <span class="tag">Shared memory · run_memory</span>
-        <span class="t">Agents don't pass prompts to each other</span>
-        <span class="d">Every agent writes findings to a shared, per-run key/value store and later agents read from it. Nothing is threaded through ever-growing prompt text (the old n8n pattern), so any stage can be inspected, replayed, or analysed after the fact.</span>
-        <ul class="keylist">
-          <li>accounts</li>
-          <li>research:&lt;account&gt;</li>
-          <li>contacts:&lt;account&gt;</li>
-          <li>strategy:&lt;account&gt;</li>
-          <li>strategy_attempt:&lt;account&gt;:&lt;n&gt;</li>
-          <li>reflection:strategy:&lt;…&gt;</li>
-          <li>email_draft:&lt;contact&gt;</li>
-        </ul>
-        <span class="d" style="margin-top:8px">Per-attempt history is kept, not overwritten — that's what makes Loop C able to ask “did the retry actually help?”</span>
-      </div>
-
-      <div class="box b-red">
-        <span class="tag">Scheduler · credit-aware</span>
-        <span class="t">Parallelism with a hard ceiling</span>
-        <table>
-          <tr><th>Pool</th><th>Conc.</th><th>Cap</th></tr>
-          <tr><td class="mono">openai</td><td>5</td><td>—</td></tr>
-          <tr><td class="mono">tavily</td><td>3</td><td>—</td></tr>
-          <tr><td class="mono">prospeo</td><td>2</td><td>75</td></tr>
-          <tr><td class="mono">hunter</td><td>2</td><td>50</td></tr>
-        </table>
-        <span class="d" style="margin-top:7px">A dynamic graph makes it easy to accidentally burn a month of free-tier email credits in one run. On exhaustion the scheduler <b>reports the skip</b> rather than silently dropping work — a silent truncation would read as “covered everything”.</span>
-      </div>
-
-      <div class="box b-red">
-        <span class="tag">Deterministic guardrails</span>
-        <span class="t">Enforced in code, after the model</span>
-        <span class="d">em-dash stripping · suppression matching · role-fit filtering · LinkedIn profile validation · never inventing an email · forcing an empty failure list when a draft truly passed. Each of these exists because the prompt-only version was observed failing.</span>
+      <div class="runtime" style="margin-top:14px; grid-template-columns:1.15fr 38px 1.15fr 38px 1.35fr 38px 1.15fr">
+        <div class="node green">
+          <span class="tag">Pursued contacts only</span>
+          <strong>Email Finder Agent</strong>
+          <p>Known domain or Hunter domain search → Prospeo → Hunter finder → Hunter verification. Returns <code>not_found</code> instead of guessing.</p>
+        </div>
+        <div class="arrow"><span>→ email found</span></div>
+        <div class="node green">
+          <span class="tag">Writer Agent</span>
+          <strong>Write grounded SMYKM email</strong>
+          <p>Uses only validated research and a mechanism-matched real proof point. Rotates angle, subject, transition and sender voice.</p>
+        </div>
+        <div class="arrow"><span>→ review</span></div>
+        <div class="node amber">
+          <span class="tag">Critic Agent</span>
+          <strong>11-point quality check</strong>
+          <p>Checks specificity, sourcing, proof, tone, length and format. A failed draft gets exactly one rewrite anchored to the original prompt.</p>
+        </div>
+        <div class="arrow"><span>→ persist</span></div>
+        <div class="node violet">
+          <span class="tag">persistResults + Supabase RPC</span>
+          <strong>Import final artifacts</strong>
+          <p>Calls <code>import_run_results</code>, updates the run to <code>done</code>, and exposes the result to the polling frontend.</p>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <h2>4 · How the problem was broken down</h2>
-  <div class="grid2">
-    <div class="box">
-      <span class="t">Sequence of reasoning</span>
-      <span class="d">
-        1 · Identify the hard constraint (no fabrication) before designing anything.<br>
-        2 · Build the four required stages as a working system first — a running pipeline beats a diagram.<br>
-        3 · Stress it against real output, and fix what actually broke rather than what looked risky.<br>
-        4 · Only then add the agentic layer: a gate that can say no, a graph that can grow, a memory all agents share, and loops that close.
-      </span>
+  <section>
+    <h2>3. Repository anatomy</h2>
+    <p class="section-copy">The folders separate user interface, entrypoint, orchestration, agent responsibility, reusable reasoning, external execution, storage, and proof of work.</p>
+    <div class="board">
+      <div class="repo-root mono">flytbase-agentic-platform/</div>
+      <div class="trunk"></div>
+      <div class="folder-grid">
+        <div class="node folder blue">
+          <span class="tag">Product surface</span>
+          <strong>frontend/</strong>
+          <p>React/TanStack Start application copied into the monorepo.</p>
+          <ul>
+            <li>auth and protected layout</li>
+            <li>run trigger + polling</li>
+            <li>accounts + dossier pages</li>
+            <li>drafts + manual Gmail action</li>
+            <li>analytics</li>
+          </ul>
+        </div>
+        <div class="node folder violet">
+          <span class="tag">Network entry</span>
+          <strong>backend/</strong>
+          <p>Plain Node HTTP service for long-running campaigns.</p>
+          <ul>
+            <li><code>GET /health</code></li>
+            <li><code>POST /run-campaign</code></li>
+            <li>CORS and environment loading</li>
+            <li>immediate run-ID response</li>
+          </ul>
+        </div>
+        <div class="node folder amber">
+          <span class="tag">Coordination</span>
+          <strong>runtime/</strong>
+          <p>The execution engine, not business-specific reasoning.</p>
+          <ul>
+            <li><code>runCampaign.ts</code> orchestrator</li>
+            <li>task graph executor</li>
+            <li>rate-aware scheduler</li>
+            <li>shared memory</li>
+            <li>persistence and analytics</li>
+          </ul>
+        </div>
+        <div class="node folder blue">
+          <span class="tag">One responsibility each</span>
+          <strong>agents/</strong>
+          <p>Typed workers that combine skills and tools.</p>
+          <ul>
+            <li>Account · Research · Contact</li>
+            <li>Strategy · Reflection</li>
+            <li>Email Finder</li>
+            <li>Writer · Critic</li>
+            <li>Planner + shared contracts</li>
+          </ul>
+        </div>
+        <div class="node folder green">
+          <span class="tag">Reusable reasoning</span>
+          <strong>skills/</strong>
+          <p>Policies and judgment that do not make network calls.</p>
+          <ul>
+            <li>SQM-based ICP scoring</li>
+            <li>role-fit and diversity</li>
+            <li>proof-point library</li>
+            <li>SMYKM writing rules</li>
+            <li>critic checklist</li>
+          </ul>
+        </div>
+        <div class="node folder green">
+          <span class="tag">External execution</span>
+          <strong>tools/</strong>
+          <p>Provider clients and deterministic post-processing.</p>
+          <ul>
+            <li>OpenAI Responses API</li>
+            <li>Tavily search</li>
+            <li>Prospeo/Hunter waterfall</li>
+            <li>Supabase client and RPC</li>
+            <li>text/source guardrails</li>
+          </ul>
+        </div>
+        <div class="node folder violet">
+          <span class="tag">State + evidence</span>
+          <strong>database/ · artifacts/</strong>
+          <p>Schema guidance plus inspectable results from real runs.</p>
+          <ul>
+            <li>existing product tables</li>
+            <li><code>run_memory</code> schema</li>
+            <li>run JSON and logs</li>
+            <li>cross-run analytics report</li>
+          </ul>
+        </div>
+        <div class="node folder">
+          <span class="tag">Verification + narrative</span>
+          <strong>tests/ · docs/ · dist/</strong>
+          <p>Tests, architectural decisions, submission material and compiled output.</p>
+          <ul>
+            <li>Strategy and Planner tests</li>
+            <li>charter + ADRs</li>
+            <li>mind map + Submission</li>
+            <li>TypeScript build output</li>
+          </ul>
+        </div>
+      </div>
     </div>
-    <div class="box">
-      <span class="t">Where the real judgement calls were</span>
-      <span class="d">
-        · Read FlytBase's <em>actual</em> case studies instead of assuming — which added a 4th decision-maker family (Digital Transformation Lead) the brief never named, and replaced logo-drops with mechanism-matched proof.<br>
-        · Match proof to the prospect's own signal by <em>mechanism</em>, not commodity.<br>
-        · Multi-thread contacts across role families so two people at one account don't get the same conversation.<br>
-        · Keep Loop C human-in-the-loop on purpose.
-      </span>
-    </div>
-  </div>
+  </section>
 
-  <div class="legend">
-    <span><i class="dot" style="background:var(--violet)"></i> Planner / dynamic graph</span>
-    <span><i class="dot" style="background:var(--blue)"></i> Discovery &amp; research</span>
-    <span><i class="dot" style="background:var(--amber)"></i> Gates &amp; in-run loops</span>
-    <span><i class="dot" style="background:var(--green)"></i> Shared memory &amp; generation</span>
-    <span><i class="dot" style="background:var(--red)"></i> Hard limits &amp; guardrails</span>
-  </div>
-</div>
+  <section>
+    <h2>4. State, observability and hard safeguards</h2>
+    <p class="section-copy">Product tables hold what the dashboard needs. Shared Memory keeps the reasoning trail and per-attempt history needed for reflection and auditing.</p>
+    <div class="two-col">
+      <div class="board">
+        <div class="eyebrow">Run lifecycle</div>
+        <div class="state-flow">
+          <div class="state"><b>running</b>run row</div>
+          <div class="state"><b>accounts</b>sourced targets</div>
+          <div class="state"><b>memory</b>research + contacts</div>
+          <div class="state"><b>strategy</b>attempts + gaps</div>
+          <div class="state"><b>emails</b>draft + critic</div>
+          <div class="state"><b>done/failed</b>visible status</div>
+        </div>
+        <div class="node" style="margin-top:14px">
+          <span class="tag">run_memory keys</span>
+          <strong>Per-run reasoning history</strong>
+          <p class="mono">accounts · research:&lt;account&gt; · contacts:&lt;account&gt; · strategy:&lt;account&gt; · strategy_attempt:&lt;account&gt;:&lt;n&gt; · reflection:strategy:&lt;...&gt; · email_draft:&lt;contact&gt;</p>
+        </div>
+        <div class="node" style="margin-top:10px">
+          <span class="tag">Cross-run feedback</span>
+          <strong><code>npm run analyze</code></strong>
+          <p>Aggregates critic failures, rejection reasons, recurring evidence gaps, retry recovery, and unreachable-contact patterns. A human decides whether skills or policy should change.</p>
+        </div>
+      </div>
+
+      <div class="board">
+        <div class="eyebrow">Non-negotiable gates</div>
+        <div class="guard-list">
+          <div class="guard"><b>No fabrication:</b> sources must come from grounded search output or the record is discarded.</div>
+          <div class="guard"><b>No wrong contacts:</b> role family and name/role evidence are filtered in code.</div>
+          <div class="guard"><b>No invented emails:</b> only Prospeo/Hunter results are accepted.</div>
+          <div class="guard"><b>No silent formatting drift:</b> em dashes are stripped after generation.</div>
+          <div class="guard"><b>No uncontrolled loops:</b> research and rewrite retries are capped at one.</div>
+          <div class="guard"><b>No automated sending:</b> a human reviews and sends manually.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>5. The simplest mental model</h2>
+    <div class="board">
+      <div class="system-flow" style="grid-template-columns:1fr 45px 1fr 45px 1fr 45px 1fr 45px 1fr">
+        <div class="node blue"><strong>Frontend asks</strong><p>“Run this campaign.”</p></div>
+        <div class="arrow"><span>→</span></div>
+        <div class="node violet"><strong>Backend acknowledges</strong><p>“Here is the run ID.”</p></div>
+        <div class="arrow"><span>→</span></div>
+        <div class="node amber"><strong>Planner delegates</strong><p>“Run the right tasks when their evidence is ready.”</p></div>
+        <div class="arrow"><span>→</span></div>
+        <div class="node green"><strong>Agents prove</strong><p>“Source it, qualify it, or mark it missing.”</p></div>
+        <div class="arrow"><span>→</span></div>
+        <div class="node blue"><strong>Frontend shows</strong><p>“Here are the auditable results for human review.”</p></div>
+      </div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--blue)"></i> interface or discovery</span>
+        <span><i class="dot" style="background:var(--violet)"></i> orchestration or persistence</span>
+        <span><i class="dot" style="background:var(--amber)"></i> judgment, gate or loop</span>
+        <span><i class="dot" style="background:var(--green)"></i> validated output</span>
+        <span><i class="dot" style="background:var(--red)"></i> deterministic safeguard</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>Generated from the current repository structure and runtime contracts. Open this file directly in any browser; no external scripts or assets are required.</footer>
+</main>
 </body>
 </html>

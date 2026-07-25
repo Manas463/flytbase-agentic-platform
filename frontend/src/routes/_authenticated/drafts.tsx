@@ -19,11 +19,12 @@ type Account = {
 const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
 
 async function fetchAllDrafts(): Promise<{
-  emails: Email[];
+  contactIds: string[]; // one entry per contact, newest-thread-first, already deduped across re-runs
+  emailsByContact: Record<string, Email[]>; // each contact's full touch sequence, sorted by sequence_index
   contacts: Record<string, Contact>;
   accounts: Record<string, Account>;
 }> {
-  // Span ALL runs (not just the latest) so every drafted email is reachable.
+  // Span ALL runs (not just the latest) so every drafted thread is reachable.
   const { data: accounts, error: accountsErr } = await supabase
     .from("accounts")
     .select("id, run_id, company, icp_score")
@@ -32,7 +33,8 @@ async function fetchAllDrafts(): Promise<{
 
   const accountList = (accounts as Account[]) ?? [];
   const accountIds = accountList.map((a) => a.id);
-  if (accountIds.length === 0) return { emails: [], contacts: {}, accounts: {} };
+  const empty = { contactIds: [], emailsByContact: {}, contacts: {}, accounts: {} };
+  if (accountIds.length === 0) return empty;
 
   const { data: contacts, error: contactsErr } = await supabase
     .from("contacts")
@@ -43,7 +45,7 @@ async function fetchAllDrafts(): Promise<{
 
   const contactList = (contacts as Contact[]) ?? [];
   const contactIds = contactList.map((c) => c.id);
-  if (contactIds.length === 0) return { emails: [], contacts: {}, accounts: {} };
+  if (contactIds.length === 0) return empty;
 
   const { data: emails, error: emailsErr } = await supabase
     .from("emails")
@@ -56,20 +58,32 @@ async function fetchAllDrafts(): Promise<{
   const contactsById = Object.fromEntries(contactList.map((c) => [c.id, c]));
   const accountsById = Object.fromEntries(accountList.map((a) => [a.id, a]));
 
-  // Dedupe: one draft per (company + contact identity). Emails are newest-first,
-  // so re-runs that regenerate the same person's email collapse to the latest one.
-  const seen = new Set<string>();
-  const deduped: Email[] = [];
+  // Group every touch by contact first (a thread is 1-4 rows: cold email +
+  // up to 3 follow-ups), sorted so the cold email always renders first.
+  const emailsByContact: Record<string, Email[]> = {};
   for (const e of (emails as Email[]) ?? []) {
+    (emailsByContact[e.contact_id] ??= []).push(e);
+  }
+  for (const list of Object.values(emailsByContact)) {
+    list.sort((a, b) => (a.sequence_index ?? 0) - (b.sequence_index ?? 0));
+  }
+
+  // Dedupe at the CONTACT level now, not the email level - one thread per
+  // (company + contact identity). Emails are newest-first, so the first
+  // contact_id encountered for a given identity belongs to the most recent run.
+  const seen = new Set<string>();
+  const contactIdsOut: string[] = [];
+  for (const e of (emails as Email[]) ?? []) {
+    if (contactIdsOut.includes(e.contact_id)) continue;
     const contact = contactsById[e.contact_id];
     const account = contact ? accountsById[contact.account_id as string] : undefined;
     const key = `${norm(account?.company)}::${norm(contact?.name)}|${norm(contact?.email)}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    deduped.push(e);
+    contactIdsOut.push(e.contact_id);
   }
 
-  return { emails: deduped, contacts: contactsById, accounts: accountsById };
+  return { contactIds: contactIdsOut, emailsByContact, contacts: contactsById, accounts: accountsById };
 }
 
 function DraftsPage() {
@@ -80,17 +94,18 @@ function DraftsPage() {
     queryFn: fetchAllDrafts,
   });
 
-  // Filter ("verified only") and sort are independent. When the filter is off, all drafts show.
+  // Filter ("verified only") and sort are independent, and now operate on
+  // threads (one entry per contact) rather than individual email rows.
   const shown = useMemo(() => {
     if (!data) return [];
-    let arr = data.emails; // fetched newest-first
+    let ids = data.contactIds; // fetched newest-thread-first
     if (verifiedOnly) {
-      arr = arr.filter((e) => {
-        const c = data.contacts[e.contact_id];
+      ids = ids.filter((id) => {
+        const c = data.contacts[id];
         return c ? normalizeStatus(c).label === "Verified" : false;
       });
     }
-    const out = [...arr];
+    const out = [...ids];
     if (sort === "oldest") out.reverse();
     return out;
   }, [data, sort, verifiedOnly]);
@@ -112,17 +127,17 @@ function DraftsPage() {
       {isLoading && <p className="mt-8 text-muted-foreground">Loading…</p>}
       {error && <p className="mt-8 text-red-400">{(error as Error).message}</p>}
 
-      {data && data.emails.length === 0 && !isLoading && (
+      {data && data.contactIds.length === 0 && !isLoading && (
         <p className="mt-8 text-muted-foreground">No drafts yet.</p>
       )}
 
-      {data && data.emails.length > 0 && (
+      {data && data.contactIds.length > 0 && (
         <div className="mt-8">
           <div className="mb-8 flex items-start justify-between gap-6 flex-wrap">
             <p className="label text-muted-foreground">
               {verifiedOnly
-                ? `${shown.length} of ${data.emails.length} drafts`
-                : `${data.emails.length} draft${data.emails.length === 1 ? "" : "s"} across all runs`}
+                ? `${shown.length} of ${data.contactIds.length} threads`
+                : `${data.contactIds.length} thread${data.contactIds.length === 1 ? "" : "s"} across all runs`}
             </p>
             <div className="flex items-start gap-6 flex-wrap">
               <div className="flex items-center gap-2">
@@ -168,13 +183,14 @@ function DraftsPage() {
             <p className="text-muted-foreground mb-8">No drafts match the selected filters.</p>
           )}
           <div className="space-y-8">
-            {shown.map((email) => {
-              const contact = data.contacts[email.contact_id];
+            {shown.map((contactId) => {
+              const contact = data.contacts[contactId];
               const account = contact ? data.accounts[contact.account_id as string] : undefined;
+              const touches = data.emailsByContact[contactId] ?? [];
               return (
-                <div key={email.id}>
+                <div key={contactId}>
                   <EmailCard
-                    email={email}
+                    emails={touches}
                     contact={contact}
                     accountName={
                       account ? (

@@ -12,7 +12,7 @@
 //      way the n8n code did, it does not re-check whether a post-rewrite
 //      draft actually passed, matching existing production behavior.
 import type { Account, Contact, ResearchBrief, RunSummary } from "../agents/types.js";
-import { importRunResults } from "../tools/supabase.js";
+import { importRunResults, getContactIdByEmail, insertFollowUpEmail } from "../tools/supabase.js";
 
 function toImportResearch(research: ResearchBrief | undefined) {
   if (!research) return null;
@@ -97,4 +97,32 @@ export function buildImportPayload(input: PersistResultsInput) {
 export async function persistResults(runId: string, input: PersistResultsInput): Promise<void> {
   const payload = buildImportPayload(input);
   await importRunResults(runId, payload);
+  await persistFollowUps(runId, input);
+}
+
+/** The RPC only ever writes the cold email (sequence_index 0). Follow-ups
+ * are inserted directly afterward, once the RPC has actually created the
+ * contact row we need to attach them to. Looked up by email rather than
+ * carrying an ID through, since import_run_results returns void. */
+async function persistFollowUps(runId: string, input: PersistResultsInput): Promise<void> {
+  const contactsWithFollowUps = Object.values(input.contactsByAccount)
+    .flat()
+    .filter((c) => c.email && c.followUps?.length);
+
+  for (const contact of contactsWithFollowUps) {
+    const contactId = await getContactIdByEmail(runId, contact.email);
+    if (!contactId) continue; // shouldn't happen - the RPC just inserted this contact - but never guess an ID
+    for (const followUp of contact.followUps ?? []) {
+      await insertFollowUpEmail({
+        runId,
+        contactId,
+        subject: followUp.subject,
+        body: followUp.body,
+        signalUsed: followUp.signalUsed,
+        criticVerdict: followUp.criticVerdict?.passed ? "passed" : "passed_after_rewrite",
+        rewrittenAfterCritic: followUp.rewrittenAfterCritic,
+        sequenceIndex: followUp.sequenceIndex,
+      });
+    }
+  }
 }

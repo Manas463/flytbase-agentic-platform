@@ -1,13 +1,22 @@
 // Ported from "Build Writer Prompt" in the existing n8n pipeline. Structure is
 // Sam McKenna's SMYKM ("Show Me You Know Me") method: open with something
 // specific and true about THIS account (not a generic industry line), connect
-// it to a real mechanism FlytBase has already proven elsewhere, ask a small
-// question rather than pushing a CTA. Rotation (angle/subject/transition/
-// sender) exists so a batch of emails doesn't read like a mail-merge, each
-// pick is deterministic (index-based), not random, so runs stay reproducible.
+// it to a real mechanism FlytBase has already proven elsewhere. Rotation
+// (angle/subject/transition/sender) exists so a batch of emails doesn't read
+// like a mail-merge, each pick is deterministic (index-based), not random, so
+// runs stay reproducible.
+//
+// The closing ask was originally a soft, low-pressure question (no hard CTA).
+// That was a deliberate choice at the time. Manas later asked for it to be a
+// clear, direct call-to-action instead, since the assignment's actual goal is
+// "book discovery calls" and a soft question doesn't move toward that goal on
+// its own. CALENDLY_LINK is real (verified live, not a placeholder) and gets
+// used as the literal booking destination.
 import type { Account, Contact, ResearchBrief } from "../agents/types.js";
 import { pickProof } from "./proofLibrary.js";
 import { stripEmDashes } from "../tools/textGuards.js";
+
+export const CALENDLY_LINK = "https://calendly.com/manas463jaiswal/30min";
 
 export const ANGLES = [
   "safety - keep people out of hazardous or hard-to-reach areas",
@@ -80,7 +89,7 @@ STRUCTURE:
 2. Use this transition into the pitch: "${transition}"
 3. Bring in this proof point naturally, adapted to fit, don't paste it verbatim: "${proof.line}" (source: ${proof.name})
 4. Lead with this angle: ${angle} - but ground it in what the research above actually says about ${opts.account.company}'s real challenges. If their specific situation genuinely calls for a second, closely-related angle, it's fine to touch on it too; don't bolt on unrelated benefits just to sound comprehensive, and don't force a single angle if it doesn't fit what you actually know about this account.
-5. Close with ONE small, easy-to-answer question. No "let's hop on a call this week" pressure, no multiple asks.
+5. Close with ONE clear call-to-action: invite them to grab 30 minutes on the calendar at ${CALENDLY_LINK}. Phrase it naturally (e.g. "If it'd be useful to compare notes, grab 30 minutes here: ${CALENDLY_LINK}"), don't just paste the link with no lead-in, and don't stack it with a second ask.
 
 SUBJECT LINE: write it as ${subjectStyle}, under 8 words, no clickbait.
 
@@ -90,8 +99,8 @@ HARD RULES:
 - Aim for roughly 80 to 150 words in the body, excluding subject and signature. This is a target, not a hard boundary - a little over or under is fine, don't pad or chop content just to hit an exact count.
 - No em dashes anywhere, use a period or comma instead.
 - No buzzwords: "synergy", "leverage", "revolutionize", "cutting-edge", "game-changer", "seamless".
-- No bracketed placeholders like [Company] or [Name], everything must be filled in for real.
-- No more than one question mark, no more than one CTA.
+- No bracketed placeholders like [Company] or [Name] or [calendar link], everything must be filled in for real, including the actual calendar URL above.
+- Exactly one CTA, exactly one link.
 - Return exactly in this format:\nSubject: <subject line>\n\n<body>\n\n<sender name>`;
 }
 

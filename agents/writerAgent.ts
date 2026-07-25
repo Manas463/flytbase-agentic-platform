@@ -7,6 +7,7 @@ import type { Account, Contact, ResearchBrief } from "./types.js";
 import { freeTextCall } from "../tools/openai.js";
 import { buildWriterPrompt, finalizeEmail } from "../skills/emailWriting.js";
 import { buildRewritePrompt } from "../skills/critic.js";
+import { buildFollowUpPrompt, type FollowUpContext } from "../skills/followUpWriting.js";
 
 export interface WriterAgentDeps {
   openaiApiKey: string;
@@ -20,7 +21,7 @@ export interface DraftedEmail {
   writerPrompt: string; // kept verbatim so a rewrite pass can be anchored to it
 }
 
-function parseDraft(raw: string): { subject: string; body: string; senderName: string } {
+export function parseDraft(raw: string): { subject: string; body: string; senderName: string } {
   const subjectMatch = raw.match(/^Subject:\s*(.+)$/m);
   const subject = finalizeEmail(subjectMatch?.[1]?.trim() ?? "");
   const rest = raw.slice((subjectMatch?.index ?? 0) + (subjectMatch?.[0]?.length ?? 0)).trim();
@@ -50,5 +51,18 @@ export async function writeEmail(opts: {
 export async function rewriteEmail(writerPrompt: string, failures: string[], deps: WriterAgentDeps): Promise<DraftedEmail> {
   const rewritePrompt = buildRewritePrompt(writerPrompt, failures);
   const raw = await freeTextCall({ apiKey: deps.openaiApiKey, model: deps.model, input: rewritePrompt });
+  return { ...parseDraft(raw), writerPrompt };
+}
+
+/** Writes one follow-up touch (1, 2, or 3), reusing the cold email's sender
+ * and mechanism so the thread reads as one continuous conversation, not four
+ * independently-invented emails. */
+export async function writeFollowUp(
+  sequenceIndex: 1 | 2 | 3,
+  ctx: FollowUpContext,
+  deps: WriterAgentDeps
+): Promise<DraftedEmail> {
+  const writerPrompt = buildFollowUpPrompt(sequenceIndex, ctx);
+  const raw = await freeTextCall({ apiKey: deps.openaiApiKey, model: deps.model, input: writerPrompt });
   return { ...parseDraft(raw), writerPrompt };
 }

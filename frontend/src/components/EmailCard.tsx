@@ -26,6 +26,7 @@ export type Email = {
   signal_used: string | null;
   critic_verdict: string | null;
   rewritten_after_critic: boolean | null;
+  sequence_index: number | null;
 };
 
 export function normalizeStatus(c: Contact): { label: string; tone: "ok" | "warn" | "bad" | "muted" } {
@@ -45,22 +46,40 @@ export function EmailStatusPill({ contact }: { contact: Contact }) {
   return <Pill tone={s.tone}>{s.label}</Pill>;
 }
 
+function touchLabel(sequenceIndex: number | null | undefined): string {
+  if (!sequenceIndex) return "Cold Email";
+  return `Follow-up ${sequenceIndex}`;
+}
+
+/** One contact's full email thread (cold email + however many follow-ups
+ * actually exist), with a toggle at the top-right to switch which touch is
+ * shown/edited/sent. `emails` should be pre-sorted by sequence_index. */
 export function EmailCard({
-  email,
+  emails,
   contact,
   accountName,
   invalidateKeys = ["account"],
 }: {
-  email: Email;
+  emails: Email[];
   contact?: Contact;
   accountName?: ReactNode;
   invalidateKeys?: string[];
 }) {
+  const [selected, setSelected] = useState(0);
+  const email = emails[Math.min(selected, emails.length - 1)];
+
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [subject, setSubject] = useState(email.subject ?? "");
   const [body, setBody] = useState(email.body ?? "");
   const [copied, setCopied] = useState(false);
+
+  function selectTouch(index: number) {
+    setSelected(index);
+    setEditing(false);
+    setSubject(emails[index].subject ?? "");
+    setBody(emails[index].body ?? "");
+  }
 
   const save = useMutation({
     mutationFn: async () => {
@@ -88,14 +107,34 @@ export function EmailCard({
   return (
     <article className="border-t border-dotted border-border pt-6">
       <header>
-        <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="label text-primary text-xl">
             To {contact?.name ?? "—"}
             {contact?.email ? ` · ${contact.email}` : ""}
           </div>
+          {emails.length > 1 && (
+            <div className="flex gap-1 flex-wrap">
+              {emails.map((e, i) => (
+                <button
+                  key={e.id}
+                  onClick={() => selectTouch(i)}
+                  className={`label px-2.5 py-1.5 border text-xs ${
+                    i === selected
+                      ? "border-primary text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {touchLabel(e.sequence_index)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="mt-2 flex items-center gap-3 flex-wrap">
           <Pill tone={email.status === "sent" ? "ok" : email.status === "ready" ? "accent" : "muted"}>
             {email.status}
           </Pill>
+          {emails.length === 1 && <span className="label text-muted-foreground">Cold Email</span>}
         </div>
         {accountName && (
           <div className="mt-2 label text-muted-foreground">{accountName}</div>

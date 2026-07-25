@@ -22,7 +22,8 @@ import { reflectOnStrategy } from "../agents/reflectionAgent.js";
 import { researchAccount, researchAccountGaps } from "../agents/researchAgent.js";
 import { findContacts, findContactsForGaps } from "../agents/contactAgent.js";
 import { findEmailForContact } from "../agents/emailFinderAgent.js";
-import { writeAndCritiqueEmail } from "../agents/criticAgent.js";
+import { writeAndCritiqueEmail, writeAndCritiqueFollowUp } from "../agents/criticAgent.js";
+import type { FollowUpContext } from "../skills/followUpWriting.js";
 import {
   buildTaskGraph,
   expandAccountTasks,
@@ -194,8 +195,26 @@ export async function runCampaign(
       }
       await setMemory(runId, memoryKeys.emailDraft(`${task.accountKey}::${task.contactIndex}`), draft);
       emailsGenerated += 1;
-      contactsByAccount[account.company][task.contactIndex!] = { ...contact, draft };
-      return draft;
+
+      // Same thread, same sender, same real mechanism the cold email used -
+      // three follow-ups are generated right away rather than as a separate
+      // task kind, since they only ever depend on this one cold email.
+      const followUpCtx: FollowUpContext = {
+        account,
+        contact: { ...contact, email: contact.email },
+        research,
+        senderName: draft.senderName,
+        coldEmailSubject: draft.subject,
+        coldEmailBody: draft.body,
+        mechanism: draft.signalUsed,
+      };
+      const followUps = await Promise.all(
+        ([1, 2, 3] as const).map((idx) => writeAndCritiqueFollowUp(idx, followUpCtx, deps))
+      );
+      await setMemory(runId, memoryKeys.followUps(`${task.accountKey}::${task.contactIndex}`), followUps);
+
+      contactsByAccount[account.company][task.contactIndex!] = { ...contact, draft, followUps };
+      return { draft, followUps };
     },
   };
 

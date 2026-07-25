@@ -82,13 +82,16 @@ export interface Contact {
   emailConfidence: number | null;
   emailVerifiedStatus: string; // "valid" | "accept_all" | "invalid" | "unknown" | ""
   companyDomain: string;
-  draft?: EmailDraft; // attached once writerAgent/criticAgent produce one, avoids a fragile name-keyed lookup elsewhere
+  draft?: EmailDraft; // the cold email (sequenceIndex 0), attached once writerAgent/criticAgent produce one
+  followUps?: EmailDraft[]; // sequenceIndex 1/2/3, same thread, same sender, generated after the cold email
 }
 
 export interface EmailDraft {
   contactId: string;
   subject: string;
   body: string;
+  senderName: string; // must match across the whole thread - follow-ups reuse the cold email's sender
+  sequenceIndex: number; // 0 = cold email, 1/2/3 = follow-ups
   signalUsed: string;
   proofUsed: string; // which PROOF_LIBRARY entry was cited, for auditability
   criticVerdict: { passed: boolean; failures: string[] } | null;

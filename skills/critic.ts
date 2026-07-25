@@ -13,8 +13,8 @@ export const CRITIC_CHECKLIST = [
   "Body length is reasonable, roughly 80-150 words - do not fail for being modestly over or under that range, only flag if it's clearly too thin to say anything real or rambling on too long",
   "Contains zero em dashes",
   "Contains zero buzzwords (synergy, leverage, revolutionize, cutting-edge, game-changer, seamless)",
-  "Contains zero bracketed placeholders",
-  "Ends with exactly one small, low-pressure question, not a hard CTA",
+  "Contains zero bracketed placeholders, including a placeholder calendar link - the real Calendly URL must actually appear",
+  "Ends with exactly one clear call-to-action inviting them to book 30 minutes on the calendar, with the real link included and naturally introduced, not just pasted",
   "Reads like a real person wrote it, not a template",
 ] as const;
 
