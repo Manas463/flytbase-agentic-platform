@@ -62,8 +62,8 @@ const server = createServer(async (req, res) => {
 
   if (req.method === "POST" && req.url === "/run-campaign") {
     try {
-      const body = (await readJsonBody(req)) as { target_vertical?: string };
-      const brief = buildDefaultBrief({ vertical: body.target_vertical });
+      const body = (await readJsonBody(req)) as { target_vertical?: string; reference_account?: string };
+      const brief = buildDefaultBrief({ vertical: body.target_vertical, anchor: body.reference_account });
       const runId = await createRun();
 
       res.writeHead(200, { "content-type": "application/json" });

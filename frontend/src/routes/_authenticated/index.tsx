@@ -91,6 +91,7 @@ function RunPage() {
   const [triggerError, setTriggerError] = useState<string | null>(null);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [targetVertical, setTargetVertical] = useState("");
+  const [referenceAccount, setReferenceAccount] = useState("");
 
   const { data: latest } = useQuery({
     queryKey: ["latest-run"],
@@ -138,7 +139,10 @@ function RunPage() {
       const res = await fetch(runCampaignUrl, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ target_vertical: targetVertical.trim() }),
+        body: JSON.stringify({
+          target_vertical: targetVertical.trim(),
+          reference_account: referenceAccount.trim(),
+        }),
       });
       if (!res.ok) throw new Error(`Webhook responded ${res.status}`);
       const json = (await res.json()) as { id?: string };
@@ -156,8 +160,9 @@ function RunPage() {
       <Eyebrow>01 / Run</Eyebrow>
       <SectionTitle>Trigger the outbound pipeline</SectionTitle>
       <p className="mt-3 text-muted-foreground max-w-xl">
-        Optional: set a target vertical, or leave blank for the default LatAm mining brief. Adds to
-        the accounts list below. Takes a few minutes.
+        Optional: set a target vertical and/or a reference account, or leave both blank for the
+        default LatAm mining brief anchored to SQM. Adds to the accounts list below. Takes a few
+        minutes.
       </p>
 
       <div className="mt-8 max-w-xl">
@@ -170,6 +175,20 @@ function RunPage() {
           value={targetVertical}
           onChange={(e) => setTargetVertical(e.target.value)}
           placeholder="Large-scale lithium, copper, and iron ore mining operations in Latin America"
+          className="w-full bg-input/40 border border-border px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
+        />
+      </div>
+
+      <div className="mt-4 max-w-xl">
+        <label className="label text-muted-foreground block mb-2" htmlFor="reference-account">
+          Reference account
+        </label>
+        <input
+          id="reference-account"
+          type="text"
+          value={referenceAccount}
+          onChange={(e) => setReferenceAccount(e.target.value)}
+          placeholder="Sociedad Quimica y Minera de Chile (SQM)"
           className="w-full bg-input/40 border border-border px-3 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
         />
       </div>

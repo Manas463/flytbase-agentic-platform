@@ -2,219 +2,230 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>FlytBase BDR Agent — Solution Flowchart</title>
+<title>FlytBase BDR Agent — Architecture &amp; Thinking</title>
 <style>
-  :root {
-    --bg: #0b0d12;
-    --panel: #131722;
-    --border: #232838;
-    --text: #e6e9f0;
-    --muted: #9aa3b5;
-    --accent: #6ee7b7;
-    --accent2: #93c5fd;
-    --accent3: #fca5a5;
-    --accent4: #fcd34d;
+  :root{
+    --bg:#0a0c11; --panel:#111520; --panel2:#161b28; --border:#242a3a;
+    --text:#e8ebf2; --muted:#98a1b4;
+    --blue:#7dd3fc; --green:#6ee7b7; --amber:#fcd34d; --red:#fca5a5; --violet:#c4b5fd;
   }
-  @media (prefers-color-scheme: light) {
-    :root {
-      --bg: #f7f8fb;
-      --panel: #ffffff;
-      --border: #e2e6ee;
-      --text: #1a1d29;
-      --muted: #5b6472;
-      --accent: #059669;
-      --accent2: #2563eb;
-      --accent3: #dc2626;
-      --accent4: #b45309;
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f6f7fb; --panel:#fff; --panel2:#f0f2f7; --border:#dfe4ee;
+      --text:#161a26; --muted:#59617180;
+      --blue:#0369a1; --green:#047857; --amber:#a16207; --red:#b91c1c; --violet:#6d28d9;
+      --muted:#596171;
     }
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    padding: 32px 20px 60px;
-  }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  .sub { color: var(--muted); font-size: 14px; margin: 0 0 28px; }
-  .wrap { max-width: 1080px; margin: 0 auto; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    padding:28px 18px 70px;line-height:1.45}
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-size:23px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 8px;max-width:900px}
+  .callout{border-left:3px solid var(--violet);background:var(--panel);padding:10px 14px;
+    font-size:13px;color:var(--muted);margin:16px 0 26px;border-radius:0 8px 8px 0}
+  .callout b{color:var(--text)}
 
-  .flow {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    align-items: stretch;
-  }
-  .row {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  .box {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
-    min-width: 190px;
-    max-width: 240px;
-    text-align: center;
-    font-size: 13.5px;
-    line-height: 1.35;
-  }
-  .box .t { font-weight: 600; display: block; margin-bottom: 4px; }
-  .box .d { color: var(--muted); font-size: 12px; }
-  .box.stage-account { border-color: var(--accent2); }
-  .box.stage-strategy { border-color: var(--accent4); }
-  .box.stage-parallel { border-color: var(--accent2); }
-  .box.stage-email { border-color: var(--accent); }
-  .box.stage-gate { border-color: var(--accent3); }
-  .box.stage-output { border-color: var(--accent); }
+  h2{font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+    margin:34px 0 14px;font-weight:600}
 
-  .arrow { color: var(--muted); font-size: 20px; flex-shrink: 0; }
-  .arrow.down { text-align: center; margin: 2px 0; }
+  .box{background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:11px 13px}
+  .box .t{font-weight:600;font-size:13.5px;display:block}
+  .box .d{color:var(--muted);font-size:11.5px;display:block;margin-top:4px}
+  .box .tag{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+    display:block;margin-bottom:5px}
+  .b-blue{border-color:var(--blue)} .b-green{border-color:var(--green)}
+  .b-amber{border-color:var(--amber)} .b-red{border-color:var(--red)}
+  .b-violet{border-color:var(--violet)}
 
-  .branch {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  .loop-note {
-    text-align: center;
-    color: var(--accent4);
-    font-size: 12px;
-    font-style: italic;
-    margin: -2px 0 2px;
-  }
+  .arrow{color:var(--muted);text-align:center;font-size:16px;margin:5px 0}
 
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px 22px;
-    margin-top: 32px;
-  }
-  .panel h2 { font-size: 16px; margin: 0 0 10px; }
-  .panel p, .panel li { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
-  .panel ul { margin: 6px 0 0; padding-left: 20px; }
-  .grid2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-  }
-  @media (max-width: 700px) {
-    .grid2 { grid-template-columns: 1fr; }
-    .box { max-width: 100%; }
-  }
-  .legend {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    font-size: 12px;
-    color: var(--muted);
-    margin-top: 18px;
-  }
-  .legend span { display: inline-flex; align-items: center; gap: 6px; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  /* main two-column: pipeline + shared memory rail */
+  .layout{display:grid;grid-template-columns:1fr 290px;gap:20px;align-items:start}
+  @media (max-width:880px){.layout{grid-template-columns:1fr}}
+
+  .rail{position:sticky;top:18px}
+  .rail .box{margin-bottom:10px}
+  .keylist{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
+    color:var(--muted);margin:7px 0 0;padding-left:14px}
+  .keylist li{margin:3px 0}
+
+  /* fan-out */
+  .fan{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px}
+  .lane{background:var(--panel2);border:1px dashed var(--border);border-radius:10px;padding:11px}
+  .lane .lanehead{font-size:11px;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:9px}
+  .par{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media (max-width:560px){.par{grid-template-columns:1fr}}
+
+  .loop{border:1px dashed var(--amber);border-radius:9px;padding:10px 12px;margin:9px 0;
+    background:color-mix(in oklab,var(--amber) 8%,transparent)}
+  .loop .lt{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);
+    font-weight:600;margin-bottom:5px}
+  .loop p{margin:0;font-size:12px;color:var(--muted)}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:760px){.grid2{grid-template-columns:1fr}}
+
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:600;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase}
+  td.mono{font-family:ui-monospace,Menlo,monospace;font-size:11px}
+
+  .legend{display:flex;gap:15px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin:14px 0 0}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%}
+  .why{font-size:12.5px;color:var(--muted);margin-top:9px;padding-left:11px;
+    border-left:2px solid var(--border)}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>FlytBase BDR Agent — How It Works</h1>
-  <p class="sub">Campaign brief in (target vertical + SQM as anchor) → real accounts, contacts, research, and personalized emails out. Every box below is a real, running piece of code, not a diagram of an idea.</p>
 
-  <div class="flow">
-    <div class="row">
-      <div class="box stage-account">
-        <span class="t">Campaign Brief</span>
-        <span class="d">Vertical: LATAM lithium/copper/iron-ore mining. Anchor: SQM. Angle: autonomous drone inspection replacing contracted crews.</span>
+  <h1>FlytBase BDR Outbound Agent — architecture &amp; reasoning</h1>
+  <p class="sub">Input: a campaign brief (target vertical + reference account). Output: real qualified accounts, sourced decision-makers, researched context, and personalized cold emails. Every box below is running code in this repo.</p>
+
+  <div class="callout">
+    <b>The one design constraint everything else follows from:</b> fabricated data is an automatic disqualifier. So the architecture is built to <b>refuse to guess</b> — an account with no source is dropped, a contact with no evidence URL is dropped, an email that can't be resolved is reported as not-found, and a thin account is sent back for more research rather than assumed either way.
+  </div>
+
+  <h2>1 · The execution graph is built at runtime, not fixed</h2>
+  <p class="sub">The Planner does <b>not</b> emit a static pipeline. It starts with a single task and the graph <b>grows as facts arrive</b> — because how many accounts exist, and how many contacts each has, is unknowable until the search actually runs.</p>
+
+  <div class="layout">
+    <div>
+      <div class="box b-violet">
+        <span class="tag">Planner · buildTaskGraph()</span>
+        <span class="t">Graph starts with exactly 1 task</span>
+        <span class="d">A dependency-aware executor runs it. Any task may call <code>ctx.addTasks()</code> mid-flight to expand the graph. No busy-polling, no fixed stage barriers — a task starts the moment <em>its own</em> dependencies resolve, not when a whole stage finishes.</span>
+      </div>
+      <div class="arrow">↓</div>
+
+      <div class="box b-blue">
+        <span class="tag">Account Agent · 3 commodity segments searched concurrently</span>
+        <span class="t">Finds real companies resembling the anchor</span>
+        <span class="d">Scored vs. SQM: scale 40% · hazard &amp; 24/7 ops 30% · geography 20% · tech adoption 10%. Then <b>code, not the model</b>, enforces: must have real source URLs · geography confirmed by <em>operations</em> not HQ · fuzzy-matched suppression of existing customers · domain dedupe.</span>
+      </div>
+      <p class="why">Suppression is fuzzy-matched because a real leak happened: “Anglo American – Minas-Rio” slipped past an exact-match filter for “Anglo American”.</p>
+      <div class="arrow">↓ graph expands: <b>3 new tasks per account discovered</b></div>
+
+      <h2 style="margin-top:22px">2 · Per-account lanes run in parallel, each with its own gate</h2>
+      <div class="fan">
+        <div class="lane">
+          <div class="lanehead">Account lane 1</div>
+          <div class="par">
+            <div class="box b-blue"><span class="t">Research</span><span class="d">news, hazard/24-7, crew reliance, best hook — each sourced</span></div>
+            <div class="box b-blue"><span class="t">Contacts</span><span class="d">2 independent channels: web search + LinkedIn-restricted</span></div>
+          </div>
+          <div class="arrow">↓ both must land</div>
+          <div class="box b-amber"><span class="t">Strategy gate</span><span class="d">scores 5 criteria → pursue / retry / reject</span></div>
+          <div class="arrow">↓ pursue</div>
+          <div class="box b-green"><span class="t">Per-contact fan-out</span><span class="d">email → write → critique</span></div>
+        </div>
+        <div class="lane">
+          <div class="lanehead">Account lane 2</div>
+          <div class="par">
+            <div class="box b-blue"><span class="t">Research</span><span class="d">running independently</span></div>
+            <div class="box b-blue"><span class="t">Contacts</span><span class="d">running independently</span></div>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="box b-amber"><span class="t">Strategy gate</span><span class="d">may loop back while lane 1 is already writing emails</span></div>
+        </div>
+        <div class="lane">
+          <div class="lanehead">Account lanes 3…8</div>
+          <div class="box"><span class="t">…same shape, all concurrent</span><span class="d">Lanes never wait on each other. Wall-clock is the slowest single lane, not the sum of stages. A full 8-account run completes in ~90 seconds.</span></div>
+        </div>
+      </div>
+      <p class="why">This is the concrete difference from the original n8n canvas: there, every stage was a barrier — <em>all</em> accounts finished research before <em>any</em> contact search began. Here, lane 2 can still be re-researching while lane 1 is already drafting email #2.</p>
+
+      <h2>3 · Two feedback loops</h2>
+
+      <div class="loop">
+        <div class="lt">↻ Loop A — inside a run · Strategy ⇄ Research/Contacts · bounded to 1 retry</div>
+        <p>The gate scores <b>ICP fit · evidence quality · operational pain · FlytBase mechanism relevance · contact readiness</b>. Below threshold, it doesn't guess and doesn't reject — it emits <b>named evidence gaps</b>, each with an owning agent and a specific research question, and the Planner injects <em>targeted</em> follow-up tasks (<code>research_strategy_gaps</code> / <code>search_strategy_contacts</code>) for only the gaps that exist. Then it re-scores. Bounded to one retry on purpose: adaptation must not become an unbounded credit-spending loop.</p>
+      </div>
+
+      <div class="loop">
+        <div class="lt">↻ Loop B — inside a run · Writer ⇄ Critic · exactly 1 rewrite</div>
+        <p>An independent critic scores the draft against an 11-point SMYKM checklist. On failure the rewrite reuses the <em>original</em> writer prompt verbatim plus the specific failures, so it stays anchored to the same real facts instead of drifting to a fresh invention. If it still fails, it ships <b>flagged</b> rather than silently — a human sees the verdict.</p>
+      </div>
+
+      <div class="loop" style="border-color:var(--violet);background:color-mix(in oklab,var(--violet) 8%,transparent)">
+        <div class="lt" style="color:var(--violet)">↻ Loop C — across runs · machine reports, human decides</div>
+        <p>A separate analytics pass reads many past runs out of shared memory and aggregates what actually went wrong: which checklist items fail most, which evidence gaps recur, how many accounts were saved by the retry loop, why contacts went unreachable. <b>It deliberately does not edit its own prompts or thresholds.</b> This project twice watched a rule quietly stop being followed when it was left to the model alone; letting the system silently rewrite its own instructions is that same failure one level up. A human reads the report and changes <code>skills/</code>.</p>
+      </div>
+      <p class="why">Loop C's very first real report immediately earned its keep: it caught the critic returning all 11 checklist items as “failures” (each labelled PASS) on emails that had actually passed — a bug invisible from any single run.</p>
+    </div>
+
+    <!-- shared memory rail -->
+    <div class="rail">
+      <div class="box b-green">
+        <span class="tag">Shared memory · run_memory</span>
+        <span class="t">Agents don't pass prompts to each other</span>
+        <span class="d">Every agent writes findings to a shared, per-run key/value store and later agents read from it. Nothing is threaded through ever-growing prompt text (the old n8n pattern), so any stage can be inspected, replayed, or analysed after the fact.</span>
+        <ul class="keylist">
+          <li>accounts</li>
+          <li>research:&lt;account&gt;</li>
+          <li>contacts:&lt;account&gt;</li>
+          <li>strategy:&lt;account&gt;</li>
+          <li>strategy_attempt:&lt;account&gt;:&lt;n&gt;</li>
+          <li>reflection:strategy:&lt;…&gt;</li>
+          <li>email_draft:&lt;contact&gt;</li>
+        </ul>
+        <span class="d" style="margin-top:8px">Per-attempt history is kept, not overwritten — that's what makes Loop C able to ask “did the retry actually help?”</span>
+      </div>
+
+      <div class="box b-red">
+        <span class="tag">Scheduler · credit-aware</span>
+        <span class="t">Parallelism with a hard ceiling</span>
+        <table>
+          <tr><th>Pool</th><th>Conc.</th><th>Cap</th></tr>
+          <tr><td class="mono">openai</td><td>5</td><td>—</td></tr>
+          <tr><td class="mono">tavily</td><td>3</td><td>—</td></tr>
+          <tr><td class="mono">prospeo</td><td>2</td><td>75</td></tr>
+          <tr><td class="mono">hunter</td><td>2</td><td>50</td></tr>
+        </table>
+        <span class="d" style="margin-top:7px">A dynamic graph makes it easy to accidentally burn a month of free-tier email credits in one run. On exhaustion the scheduler <b>reports the skip</b> rather than silently dropping work — a silent truncation would read as “covered everything”.</span>
+      </div>
+
+      <div class="box b-red">
+        <span class="tag">Deterministic guardrails</span>
+        <span class="t">Enforced in code, after the model</span>
+        <span class="d">em-dash stripping · suppression matching · role-fit filtering · LinkedIn profile validation · never inventing an email · forcing an empty failure list when a draft truly passed. Each of these exists because the prompt-only version was observed failing.</span>
       </div>
     </div>
-    <div class="arrow down">↓</div>
+  </div>
 
-    <div class="row">
-      <div class="box stage-account">
-        <span class="t">Account Agent</span>
-        <span class="d">Web-searches per commodity segment, scores every candidate against SQM (scale, hazard/24-7 ops, geography, tech adoption), drops anything unsourced or suppressed (existing customers).</span>
-      </div>
+  <h2>4 · How the problem was broken down</h2>
+  <div class="grid2">
+    <div class="box">
+      <span class="t">Sequence of reasoning</span>
+      <span class="d">
+        1 · Identify the hard constraint (no fabrication) before designing anything.<br>
+        2 · Build the four required stages as a working system first — a running pipeline beats a diagram.<br>
+        3 · Stress it against real output, and fix what actually broke rather than what looked risky.<br>
+        4 · Only then add the agentic layer: a gate that can say no, a graph that can grow, a memory all agents share, and loops that close.
+      </span>
     </div>
-    <div class="arrow down">↓</div>
-
-    <div class="row branch">
-      <div class="box stage-parallel">
-        <span class="t">Research Agent</span>
-        <span class="d">Grounded web search per account: recent news, hazard/24-7 context, contracted-crew evidence, best personalization hook. Every claim sourced or left honestly blank.</span>
-      </div>
-      <div class="box stage-parallel">
-        <span class="t">Contact Agent</span>
-        <span class="d">Finds sourced decision-makers across 4 role families (Operations, HSE, Site, Digital Transformation), diversified rather than picked by rank alone.</span>
-      </div>
-    </div>
-    <div class="arrow down">↓</div>
-
-    <div class="row">
-      <div class="box stage-strategy">
-        <span class="t">Strategy Agent — qualification gate</span>
-        <span class="d">Weighted score: ICP fit, evidence quality, operational pain, FlytBase mechanism relevance, contact readiness.</span>
-      </div>
-    </div>
-    <div class="loop-note">↻ if evidence is thin: one targeted extra research/contact pass, then re-score (bounded — never an unlimited loop)</div>
-    <div class="arrow down">↓ pursue</div>
-
-    <div class="row">
-      <div class="box stage-gate">
-        <span class="t">Email Finder</span>
-        <span class="d">Prospeo → Hunter waterfall, only ever runs on an already role-fit, sourced contact. Never invents an email — honest "not found" otherwise.</span>
-      </div>
-    </div>
-    <div class="arrow down">↓ email resolved</div>
-
-    <div class="row">
-      <div class="box stage-email">
-        <span class="t">Writer Agent (SMYKM)</span>
-        <span class="d">Specific sourced hook → real FlytBase proof point, mechanism-matched to the account's own signal → one soft, low-pressure question.</span>
-      </div>
-    </div>
-    <div class="arrow down">↓</div>
-
-    <div class="row">
-      <div class="box stage-email">
-        <span class="t">Critic Agent</span>
-        <span class="d">11-point SMYKM check. Fails → exactly one rewrite pass, anchored to the same facts. Deterministic code strips em dashes and forces failures=[] when it truly passed — never trusted to the prompt alone.</span>
-      </div>
-    </div>
-    <div class="arrow down">↓</div>
-
-    <div class="row">
-      <div class="box stage-output">
-        <span class="t">Persist + Feedback Loop</span>
-        <span class="d">Writes to the same production Supabase tables the live dashboard reads. A separate analytics pass aggregates real critic/strategy patterns across runs for a human to act on — never edits its own prompts.</span>
-      </div>
+    <div class="box">
+      <span class="t">Where the real judgement calls were</span>
+      <span class="d">
+        · Read FlytBase's <em>actual</em> case studies instead of assuming — which added a 4th decision-maker family (Digital Transformation Lead) the brief never named, and replaced logo-drops with mechanism-matched proof.<br>
+        · Match proof to the prospect's own signal by <em>mechanism</em>, not commodity.<br>
+        · Multi-thread contacts across role families so two people at one account don't get the same conversation.<br>
+        · Keep Loop C human-in-the-loop on purpose.
+      </span>
     </div>
   </div>
 
   <div class="legend">
-    <span><i class="dot" style="background:var(--accent2)"></i> Discovery (accounts / research / contacts)</span>
-    <span><i class="dot" style="background:var(--accent4)"></i> Qualification gate + retry loop</span>
-    <span><i class="dot" style="background:var(--accent3)"></i> Deterministic guardrail step</span>
-    <span><i class="dot" style="background:var(--accent)"></i> Generation + output</span>
-  </div>
-
-  <div class="panel">
-    <h2>How I broke the problem down</h2>
-    <div class="grid2">
-      <div>
-        <p><strong>The hard constraint first.</strong> The brief's one disqualifier is fabricated data, so every stage was designed around "real source or honest gap," not around making the pipeline look complete.</p>
-        <p><strong>Then the four required stages</strong> (Account ID → Contact Discovery → Account Research → Personalized Email), each with its own model call plus a deterministic code pass that enforces what the prompt alone couldn't be trusted to hold (em dashes, suppression matching, role-fit filtering).</p>
-      </div>
-      <div>
-        <p><strong>Then the agentic layer on top:</strong> a Strategy Agent that's a real qualification gate (not just a ranking), a Planner that actually drives execution as a dependency graph, and a feedback loop that reports real patterns back to a human instead of auto-editing itself.</p>
-        <p><strong>Reasoning behind the human-in-the-loop choice:</strong> this project caught the same failure twice already, a rule left purely to the model quietly stopped being followed. Letting the system rewrite its own instructions unsupervised would be that same risk, one level up.</p>
-      </div>
-    </div>
+    <span><i class="dot" style="background:var(--violet)"></i> Planner / dynamic graph</span>
+    <span><i class="dot" style="background:var(--blue)"></i> Discovery &amp; research</span>
+    <span><i class="dot" style="background:var(--amber)"></i> Gates &amp; in-run loops</span>
+    <span><i class="dot" style="background:var(--green)"></i> Shared memory &amp; generation</span>
+    <span><i class="dot" style="background:var(--red)"></i> Hard limits &amp; guardrails</span>
   </div>
 </div>
 </body>

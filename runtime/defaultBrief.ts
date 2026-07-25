@@ -1,14 +1,16 @@
 // Shared campaign brief so runtime/cli.ts (manual runs) and backend/server.ts
 // (triggered from the frontend) build the exact same brief instead of two
-// copies drifting apart. Only `vertical` is overridable from outside, the
-// frontend's trigger form only ever sent target_vertical, everything else
-// (SQM anchor, goal, role families, proof customers, suppression) stays fixed.
+// copies drifting apart. `vertical` and `anchor` are overridable from the
+// frontend's trigger form, everything else (goal, role families, proof
+// customers, suppression) stays fixed.
 import type { CampaignBrief } from "../agents/types.js";
 
-export function buildDefaultBrief(overrides: Partial<Pick<CampaignBrief, "vertical">> = {}): CampaignBrief {
+export function buildDefaultBrief(
+  overrides: Partial<Pick<CampaignBrief, "vertical" | "anchor">> = {}
+): CampaignBrief {
   return {
     vertical: overrides.vertical?.trim() || "large-scale lithium, copper, and iron-ore mining in Latin America",
-    anchor: "Sociedad Quimica y Minera de Chile (SQM)",
+    anchor: overrides.anchor?.trim() || "Sociedad Quimica y Minera de Chile (SQM)",
     goal: "book qualified discovery calls for FlytBase's autonomous drone-in-a-box inspection platform",
     angle: "replace manual/contracted inspection crews in hazardous, 24/7 mining operations with autonomous drone inspection",
     maxAccounts: 8,
