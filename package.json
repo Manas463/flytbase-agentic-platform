@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
     "campaign": "node --env-file=.env --import tsx runtime/cli.ts",
     "analyze": "node --env-file=.env --import tsx runtime/analyzeCli.ts"
   },

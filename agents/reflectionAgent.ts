@@ -1,17 +1,7 @@
-// =============================================================================
-// FIRST DRAFT — NEEDS YOUR DESIGN INPUT, NOT A PORT.
-// The only existing precedent for this is the single critic-to-rewrite pass
-// on emails (agents/criticAgent.ts): one retry, then ship regardless of the
-// outcome. The charter calls for a GENERAL reflection layer across every
-// stage (accounts, research, contacts, emails), with a confidence score and a
-// retry decision. Generalizing "one email failed 3 of 11 checklist items" into
-// "this account's research came back thin" or "we only found 1 of 3 requested
-// contacts" is a real design problem (what counts as low confidence per stage?
-// how many retries before giving up and marking not-found honestly, matching
-// the anti-fabrication principle rather than inventing filler?). What's below
-// is a placeholder shape, not a tuned policy.
-// =============================================================================
-import type { ReflectionEntry } from "./types.js";
+// Generic count-based reflection remains available for simple stages. Strategy
+// uses the richer criterion-aware reflection below so its retries address
+// named evidence gaps rather than repeating the same broad search.
+import type { ReflectionEntry, StrategyVerdict } from "./types.js";
 
 export interface StageResult {
   stage: string;
@@ -37,5 +27,27 @@ export function reflect(result: StageResult, attemptsSoFar: number): ReflectionE
         ? [`Accept partial result for ${result.stage} honestly (${result.itemCount}/${result.expectedCount}); do not fabricate the rest.`]
         : [],
     retryRecommended,
+  };
+}
+
+/** Converts an explainable Strategy verdict into Planner feedback. This is a
+ * learning loop in the operational sense: observe missing evidence, create
+ * targeted work, retry once, and retain the outcome. It never lets an LLM
+ * rewrite its own scorecard or guardrails. */
+export function reflectOnStrategy(verdict: StrategyVerdict): ReflectionEntry {
+  const retryRecommended = verdict.status === "needs_more_research" && !verdict.terminal;
+  return {
+    stage: "strategy",
+    accountId: verdict.accountId,
+    attempt: verdict.attempt,
+    confidence: verdict.confidence,
+    failures: verdict.gaps.map((gap) => gap.description),
+    suggestions: retryRecommended
+      ? verdict.gaps.map((gap) => `${gap.owner}: ${gap.researchQuestion}`)
+      : verdict.status === "reject"
+        ? [`Stop spending credits on this account: ${verdict.reason}`]
+        : ["Qualification passed; continue to email resolution and writing."],
+    retryRecommended,
+    gapIds: verdict.gaps.map((gap) => gap.id),
   };
 }

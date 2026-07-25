@@ -48,6 +48,7 @@ export async function listMemoryKeys(runId: string, prefix: string): Promise<str
 export const memoryKeys = {
   accounts: () => "accounts",
   strategy: (accountId: string) => `strategy:${accountId}`,
+  strategyAttempt: (accountId: string, attempt: number) => `strategy_attempt:${accountId}:${attempt}`,
   research: (accountId: string) => `research:${accountId}`,
   contacts: (accountId: string) => `contacts:${accountId}`,
   emailDraft: (contactId: string) => `email_draft:${contactId}`,

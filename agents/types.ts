@@ -47,6 +47,22 @@ export interface ResearchBrief {
   bestHook: string;
   bestHookSource: string;
   sources: string[];
+  evidence: ResearchEvidence[];
+}
+
+export type ResearchDimension =
+  | "scale"
+  | "operations"
+  | "hazard_247"
+  | "contracted_crews"
+  | "technology"
+  | "expansion"
+  | "personalization_hook";
+
+export interface ResearchEvidence {
+  dimension: ResearchDimension;
+  claim: string;
+  sourceUrl: string;
 }
 
 export interface Contact {
@@ -80,11 +96,46 @@ export interface EmailDraft {
   status: "ready" | "sent";
 }
 
+export type StrategyStatus = "pursue" | "needs_more_research" | "reject";
+
+export type StrategyCriterion =
+  | "icp_fit"
+  | "evidence_quality"
+  | "operational_pain"
+  | "flytbase_relevance"
+  | "contact_readiness";
+
+export interface StrategyScoreComponent {
+  criterion: StrategyCriterion;
+  label: string;
+  score: number;
+  maxScore: number;
+  reason: string;
+}
+
+export interface EvidenceGap {
+  id: string;
+  criterion: StrategyCriterion;
+  description: string;
+  researchQuestion: string;
+  owner: "research_agent" | "contact_agent";
+  priority: "high" | "medium";
+}
+
 export interface StrategyVerdict {
   accountId: string;
+  status: StrategyStatus;
+  /** Kept for compatibility with analytics and existing callers. */
   pursue: boolean;
+  score: number;
+  pursueThreshold: number;
   reason: string;
   confidence: number;
+  criteria: StrategyScoreComponent[];
+  gaps: EvidenceGap[];
+  attempt: number;
+  maxAttempts: number;
+  terminal: boolean;
 }
 
 export interface ReflectionEntry {
@@ -93,6 +144,9 @@ export interface ReflectionEntry {
   failures: string[];
   suggestions: string[];
   retryRecommended: boolean;
+  accountId?: string;
+  attempt?: number;
+  gapIds?: string[];
 }
 
 export interface RunSummary {

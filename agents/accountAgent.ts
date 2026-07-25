@@ -46,11 +46,11 @@ export async function findAccounts(
         schema: ACCOUNT_SCHEMA,
         schemaName: "accounts",
       });
-      return structured.accounts;
+      return { accounts: structured.accounts, allowedSources: new Set(sourceUrls) };
     })
   );
 
-  const merged: Account[] = perSegment.flat().map((r) => ({
+  const merged: Account[] = perSegment.flatMap(({ accounts, allowedSources }) => accounts.map((r) => ({
     runId,
     company: r.company,
     domain: normDomain(r.domain),
@@ -62,14 +62,16 @@ export async function findAccounts(
     whyFitVsAnchor: r.why_fit_vs_anchor,
     icpScore: r.icp_score,
     ownershipFlags: r.ownership_flags,
-    sources: r.sources ?? [],
+    // Deterministic provenance gate: a syntactically valid URL is not enough;
+    // it must be one the grounded search actually returned in this call.
+    sources: (r.sources ?? []).filter((source) => allowedSources.has(source)),
     geoOk: confirmsLatamOperations({
       latamSites: r.latam_sites,
       opsEvidence: r.ops_evidence,
       scaleEvidence: r.scale_evidence,
       hqCountry: r.hq_country,
     }),
-  }));
+  })));
 
   const filtered = merged.filter(
     (a) => a.company && a.sources.length > 0 && a.geoOk && !isSuppressed(a.company, brief.suppression)

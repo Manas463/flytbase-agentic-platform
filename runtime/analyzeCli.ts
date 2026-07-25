@@ -2,7 +2,7 @@
 // saves a pattern report - what's actually failing critic review, why
 // accounts get gated out, why contacts go unemailed. Read the output, then
 // decide yourself what to change in skills/emailWriting.ts, skills/critic.ts,
-// or agents/strategyAgent.ts's ICP_FLOOR. This script never touches those
+// or the human-controlled policy in agents/strategyAgent.ts. This script never touches those
 // files itself.
 import { analyzeRecentRuns } from "./runAnalytics.js";
 import { writeFileSync, mkdirSync } from "node:fs";
@@ -26,6 +26,13 @@ async function main() {
 
   console.log("\nStrategy-gate rejections:");
   for (const r of report.strategyRejectReasons.slice(0, 10)) console.log(`  ${r.count}x  ${r.value}`);
+
+  console.log("\nStrategy evidence gaps:");
+  for (const gap of report.strategyGapFrequency) console.log(`  ${gap.count}x  ${gap.value}`);
+  console.log(
+    `Strategy retries: ${report.strategyRetryStats.accountsRetried} account(s), ` +
+      `${report.strategyRetryStats.pursuedAfterRetry} recovered, ${report.strategyRetryStats.rejectedAfterRetry} rejected.`
+  );
 
   console.log("\nContact-not-found reasons:");
   for (const r of report.notFoundReasons.slice(0, 10)) console.log(`  ${r.count}x  ${r.value}`);

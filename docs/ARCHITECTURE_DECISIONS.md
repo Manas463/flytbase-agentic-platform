@@ -75,3 +75,33 @@ Skills = reasoning.
 Tools = execution.
 
 Agents combine both dynamically.
+
+------------------------------------------------------------------------
+
+## ADR-009
+
+**Decision:** Strategy qualification is deterministic, scored, and evidence-aware.
+
+The score is out of 100: ICP fit (30), evidence quality (20), operational
+pain (20), FlytBase relevance (20), and contact readiness (10). An account
+must score at least 70 and have no high-priority evidence gap to proceed.
+
+**Reason:** Qualification must be explainable and reproducible. An LLM may
+gather evidence, but it does not get to move the pursuit threshold or waive a
+missing-source rule.
+
+------------------------------------------------------------------------
+
+## ADR-010
+
+**Decision:** `needs_more_research` creates targeted Planner tasks and permits
+one re-evaluation.
+
+Each gap records its criterion, description, research question, priority, and
+owning agent. Research and contact agents rerun only for gaps they own. Every
+attempt and reflection is persisted in Shared Memory. After one retry, the
+account must either pass or be rejected honestly.
+
+**Reason:** A bounded loop improves incomplete results without repeating a
+broad search indefinitely or exhausting free-tier API credits. This is
+operational learning, not autonomous prompt or policy mutation.

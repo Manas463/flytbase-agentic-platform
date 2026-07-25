@@ -30,6 +30,12 @@ export interface RunAnalyticsReport {
   failureFrequency: FrequencyEntry[];
   failureCategoryCounts: Record<string, number>;
   strategyRejectReasons: FrequencyEntry[];
+  strategyGapFrequency: FrequencyEntry[];
+  strategyRetryStats: {
+    accountsRetried: number;
+    pursuedAfterRetry: number;
+    rejectedAfterRetry: number;
+  };
   notFoundReasons: FrequencyEntry[];
 }
 
@@ -77,6 +83,10 @@ export async function analyzeRecentRuns(limit = 10): Promise<RunAnalyticsReport>
 
   const drafts: EmailDraft[] = [];
   const strategyRejectReasonsRaw: string[] = [];
+  const strategyGapsRaw: string[] = [];
+  const retriedAccounts = new Set<string>();
+  let pursuedAfterRetry = 0;
+  let rejectedAfterRetry = 0;
   const notFoundReasonsRaw: string[] = [];
 
   for (const run of runs ?? []) {
@@ -89,7 +99,21 @@ export async function analyzeRecentRuns(limit = 10): Promise<RunAnalyticsReport>
     const strategyKeys = await listMemoryKeys(run.id, "strategy:");
     for (const key of strategyKeys) {
       const verdict = await getMemory<StrategyVerdict>(run.id, key);
-      if (verdict && !verdict.pursue) strategyRejectReasonsRaw.push(verdict.reason);
+      if (!verdict) continue;
+      if (!verdict.pursue) strategyRejectReasonsRaw.push(verdict.reason);
+      if (verdict.attempt > 0) {
+        retriedAccounts.add(`${run.id}:${verdict.accountId}`);
+        if (verdict.status === "pursue") pursuedAfterRetry += 1;
+        if (verdict.status === "reject") rejectedAfterRetry += 1;
+      }
+    }
+
+    const attemptKeys = await listMemoryKeys(run.id, "strategy_attempt:");
+    for (const key of attemptKeys) {
+      const verdict = await getMemory<StrategyVerdict>(run.id, key);
+      if (verdict?.status === "needs_more_research") {
+        strategyGapsRaw.push(...verdict.gaps.map((gap) => gap.id));
+      }
     }
 
     const detail = (run.contacts_not_found_detail as { reason: string }[] | null) ?? [];
@@ -114,6 +138,12 @@ export async function analyzeRecentRuns(limit = 10): Promise<RunAnalyticsReport>
     failureFrequency: countFrequency(allFailures),
     failureCategoryCounts,
     strategyRejectReasons: countFrequency(strategyRejectReasonsRaw),
+    strategyGapFrequency: countFrequency(strategyGapsRaw),
+    strategyRetryStats: {
+      accountsRetried: retriedAccounts.size,
+      pursuedAfterRetry,
+      rejectedAfterRetry,
+    },
     notFoundReasons: countFrequency(notFoundReasonsRaw),
   };
 }

@@ -3,7 +3,7 @@
 // (general web search for exec mentions, Tavily restricted to linkedin.com)
 // feed one structuring call, then role-fit + diversity selection happens in
 // code (skills/roleFit.ts), never left to the model's own judgment.
-import type { Account, CampaignBrief, Contact } from "./types.js";
+import type { Account, CampaignBrief, Contact, EvidenceGap } from "./types.js";
 import { webSearch, structuredCall } from "../tools/openai.js";
 import { tavilySearch } from "../tools/tavily.js";
 import { buildContactsPrompt, selectContacts, CONTACT_SCHEMA } from "../skills/roleFit.js";
@@ -27,17 +27,18 @@ interface RawContact {
 export async function findContacts(
   account: Account,
   brief: CampaignBrief,
-  deps: ContactAgentDeps
+  deps: ContactAgentDeps,
+  focus = ""
 ): Promise<Contact[]> {
   const execSearch = await webSearch({
     apiKey: deps.openaiApiKey,
     model: deps.model,
-    input: `Find named executives and site leaders at ${account.company} (${account.domain || "domain unknown"}) matching these role families: ${brief.targetTitles.join("; ")}. Report each with their full title and a real source URL. Latin American sites of interest: ${account.latamSites || "unspecified"}.`,
+    input: `Find named executives and site leaders at ${account.company} (${account.domain || "domain unknown"}) matching these role families: ${brief.targetTitles.join("; ")}. Report each with their full title and a real source URL. Latin American sites of interest: ${account.latamSites || "unspecified"}.${focus ? ` Targeted follow-up: ${focus}` : ""}`,
   });
 
   const linkedinResults = await tavilySearch({
     apiKey: deps.tavilyApiKey,
-    query: `${account.company} ${brief.targetTitles.join(" OR ")} site:linkedin.com/in`,
+    query: `${account.company} ${brief.targetTitles.join(" OR ")}${focus ? ` ${focus}` : ""} site:linkedin.com/in`,
     includeDomains: ["linkedin.com"],
     maxResults: 10,
   });
@@ -55,8 +56,15 @@ export async function findContacts(
     schemaName: "contacts",
   });
 
+  const allowedSources = new Set([
+    ...execSearch.sourceUrls,
+    ...linkedinResults.map((result) => result.url),
+  ]);
+
   const rawContacts: Contact[] = structured.contacts
-    .filter((c) => c.name && c.evidence_source)
+    // The source must come from one of the two grounded search channels. This
+    // prevents a model-created but plausible-looking URL from passing Strategy.
+    .filter((c) => c.name && allowedSources.has(c.evidence_source))
     .map((c) => ({
       accountId: account.id ?? "",
       name: c.name,
@@ -76,4 +84,18 @@ export async function findContacts(
     }));
 
   return selectContacts(rawContacts, brief.contactsPerAccount, account.latamSites);
+}
+
+export async function findContactsForGaps(
+  account: Account,
+  brief: CampaignBrief,
+  current: Contact[],
+  gaps: EvidenceGap[],
+  deps: ContactAgentDeps
+): Promise<Contact[]> {
+  const contactGaps = gaps.filter((gap) => gap.owner === "contact_agent");
+  if (!contactGaps.length) return current;
+  const focus = contactGaps.map((gap) => gap.researchQuestion).join(" ");
+  const additional = await findContacts(account, brief, deps, focus);
+  return selectContacts([...current, ...additional], brief.contactsPerAccount, account.latamSites);
 }

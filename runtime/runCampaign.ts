@@ -18,11 +18,18 @@ import type {
 } from "../agents/types.js";
 import { findAccounts } from "../agents/accountAgent.js";
 import { evaluateAccount } from "../agents/strategyAgent.js";
-import { researchAccount } from "../agents/researchAgent.js";
-import { findContacts } from "../agents/contactAgent.js";
+import { reflectOnStrategy } from "../agents/reflectionAgent.js";
+import { researchAccount, researchAccountGaps } from "../agents/researchAgent.js";
+import { findContacts, findContactsForGaps } from "../agents/contactAgent.js";
 import { findEmailForContact } from "../agents/emailFinderAgent.js";
 import { writeAndCritiqueEmail } from "../agents/criticAgent.js";
-import { buildTaskGraph, expandAccountTasks, expandContactTasks, type TaskKind } from "../agents/plannerAgent.js";
+import {
+  buildTaskGraph,
+  expandAccountTasks,
+  expandContactTasks,
+  expandStrategyRetryTasks,
+  type TaskKind,
+} from "../agents/plannerAgent.js";
 import { createRun, markRunDone, markRunFailed } from "../tools/supabase.js";
 import { setMemory, memoryKeys } from "./sharedMemory.js";
 import { defaultScheduler } from "./scheduler.js";
@@ -42,6 +49,7 @@ export interface RunCampaignResult {
   accounts: Account[];
   contactsByAccount: Record<string, Contact[]>; // each contact carries its resolved email + .draft, if any
   researchByAccount: Record<string, ResearchBrief>;
+  strategyByAccount: Record<string, StrategyVerdict>;
 }
 
 const POOL_BY_KIND: Record<TaskKind, string> = {
@@ -49,6 +57,8 @@ const POOL_BY_KIND: Record<TaskKind, string> = {
   evaluate_strategy: "supabase", // no external API call, just the setMemory write
   research_account: "openai",
   find_contacts: "openai",
+  research_strategy_gaps: "openai",
+  search_strategy_contacts: "openai",
   find_email: "prospeo",
   write_and_critique_email: "openai",
 };
@@ -62,6 +72,7 @@ export async function runCampaign(brief: CampaignBrief, deps: RunCampaignDeps): 
   const accountByKey = new Map<string, Account>();
   const contactsByAccount: Record<string, Contact[]> = {};
   const researchByAccount: Record<string, ResearchBrief> = {};
+  const strategyByAccount: Record<string, StrategyVerdict> = {};
   const notFoundDetail: { company: string; reason: string }[] = [];
   let emailsGenerated = 0;
   let accountsFound = 0;
@@ -76,38 +87,75 @@ export async function runCampaign(brief: CampaignBrief, deps: RunCampaignDeps): 
       return accounts;
     },
 
-    evaluate_strategy: async (task) => {
+    research_account: async (task) => {
       const account = accountByKey.get(task.accountKey!)!;
-      const verdict = evaluateAccount(account);
-      await setMemory(runId, memoryKeys.strategy(task.accountKey!), verdict);
-      if (!verdict.pursue) {
-        notFoundDetail.push({ company: account.company, reason: `Strategy gate: ${verdict.reason}` });
-      }
-      return verdict;
-    },
-
-    research_account: async (task, ctx) => {
-      const account = accountByKey.get(task.accountKey!)!;
-      const verdict = ctx.results.get(`strategy:${task.accountKey}`) as StrategyVerdict;
-      if (!verdict.pursue) return null;
       const research = await researchAccount(account, deps);
       await setMemory(runId, memoryKeys.research(task.accountKey!), research);
       researchByAccount[account.company] = research;
       return research;
     },
 
-    find_contacts: async (task, ctx) => {
+    find_contacts: async (task) => {
       const account = accountByKey.get(task.accountKey!)!;
-      const verdict = ctx.results.get(`strategy:${task.accountKey}`) as StrategyVerdict;
-      if (!verdict.pursue) return null;
       const contacts = await findContacts(account, brief, deps);
       await setMemory(runId, memoryKeys.contacts(task.accountKey!), contacts);
       contactsByAccount[account.company] = contacts;
-      if (!contacts.length) {
-        notFoundDetail.push({ company: account.company, reason: "No role-fitting, sourced contacts found." });
-        return contacts;
+      return contacts;
+    },
+
+    evaluate_strategy: async (task, ctx) => {
+      const accountKey = task.accountKey!;
+      const account = accountByKey.get(accountKey)!;
+      const research = researchByAccount[account.company];
+      const contacts = contactsByAccount[account.company] ?? [];
+      const verdict = evaluateAccount(account, research, contacts, { attempt: task.attempt ?? 0 });
+      const reflection = reflectOnStrategy(verdict);
+
+      strategyByAccount[account.company] = verdict;
+      await Promise.all([
+        setMemory(runId, memoryKeys.strategy(accountKey), verdict),
+        setMemory(runId, memoryKeys.strategyAttempt(accountKey, verdict.attempt), verdict),
+        setMemory(runId, memoryKeys.reflection("strategy", `${accountKey}:${verdict.attempt}`), reflection),
+      ]);
+
+      if (verdict.status === "needs_more_research") {
+        const owners = [...new Set(verdict.gaps.map((gap) => gap.owner))];
+        ctx.addTasks(expandStrategyRetryTasks(accountKey, verdict.attempt + 1, owners));
+      } else if (verdict.status === "pursue") {
+        if (contacts.length) {
+          ctx.addTasks(expandContactTasks(accountKey, contacts.length, task.id));
+        } else {
+          notFoundDetail.push({ company: account.company, reason: "No role-fitting, sourced contacts found after targeted search." });
+        }
+      } else {
+        notFoundDetail.push({ company: account.company, reason: `Strategy gate: ${verdict.reason}` });
       }
-      ctx.addTasks(expandContactTasks(task.accountKey!, contacts.length));
+      return verdict;
+    },
+
+    research_strategy_gaps: async (task, ctx) => {
+      const accountKey = task.accountKey!;
+      const account = accountByKey.get(accountKey)!;
+      const prior = ctx.results.get(`strategy:${accountKey}:${(task.attempt ?? 1) - 1}`) as StrategyVerdict;
+      const research = await researchAccountGaps(account, researchByAccount[account.company], prior.gaps, deps);
+      researchByAccount[account.company] = research;
+      await setMemory(runId, memoryKeys.research(accountKey), research);
+      return research;
+    },
+
+    search_strategy_contacts: async (task, ctx) => {
+      const accountKey = task.accountKey!;
+      const account = accountByKey.get(accountKey)!;
+      const prior = ctx.results.get(`strategy:${accountKey}:${(task.attempt ?? 1) - 1}`) as StrategyVerdict;
+      const contacts = await findContactsForGaps(
+        account,
+        brief,
+        contactsByAccount[account.company] ?? [],
+        prior.gaps,
+        deps
+      );
+      contactsByAccount[account.company] = contacts;
+      await setMemory(runId, memoryKeys.contacts(accountKey), contacts);
       return contacts;
     },
 
@@ -165,7 +213,7 @@ export async function runCampaign(brief: CampaignBrief, deps: RunCampaignDeps): 
       contactsNotFoundDetail: notFoundDetail,
     });
 
-    return { summary, accounts, contactsByAccount, researchByAccount };
+    return { summary, accounts, contactsByAccount, researchByAccount, strategyByAccount };
   } catch (err) {
     await markRunFailed(runId, err instanceof Error ? err.message : String(err));
     throw err;
