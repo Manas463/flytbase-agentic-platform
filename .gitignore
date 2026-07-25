@@ -4,3 +4,7 @@ dist/
 artifacts/*.json
 artifacts/*.log
 .DS_Store
+
+# Personal reference material only, never pushed
+docs/FlytBase_5-Minute_Walkthrough.html
+*.pdf
