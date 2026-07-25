@@ -9,7 +9,8 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "campaign": "node --env-file=.env --import tsx runtime/cli.ts",
     "analyze": "node --env-file=.env --import tsx runtime/analyzeCli.ts",
-    "serve": "node --env-file=.env --import tsx backend/server.ts"
+    "serve": "node --env-file=.env --import tsx backend/server.ts",
+    "start": "node --import tsx backend/server.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"
