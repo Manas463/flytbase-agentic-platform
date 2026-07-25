@@ -30,7 +30,7 @@ import {
   expandStrategyRetryTasks,
   type TaskKind,
 } from "../agents/plannerAgent.js";
-import { createRun, markRunDone, markRunFailed } from "../tools/supabase.js";
+import { markRunDone, markRunFailed } from "../tools/supabase.js";
 import { setMemory, memoryKeys } from "./sharedMemory.js";
 import { defaultScheduler } from "./scheduler.js";
 import { runTaskGraph, type TaskContext, type TaskExecutor } from "./taskGraphExecutor.js";
@@ -63,8 +63,16 @@ const POOL_BY_KIND: Record<TaskKind, string> = {
   write_and_critique_email: "openai",
 };
 
-export async function runCampaign(brief: CampaignBrief, deps: RunCampaignDeps): Promise<RunCampaignResult> {
-  const runId = await createRun();
+/** Takes an already-created runId rather than creating one itself, so a
+ * caller (backend/server.ts) can respond to its client with the run id
+ * immediately and let the campaign continue in the background - the same
+ * "respond right away, poll for completion" contract the old n8n webhook
+ * already used, which the frontend still expects. */
+export async function runCampaign(
+  runId: string,
+  brief: CampaignBrief,
+  deps: RunCampaignDeps
+): Promise<RunCampaignResult> {
   const scheduler = defaultScheduler((pool, reason) => {
     console.warn(`[scheduler] skipped work on pool "${pool}": ${reason}`);
   });
