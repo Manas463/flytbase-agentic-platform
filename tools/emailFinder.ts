@@ -82,6 +82,14 @@ function matchFromHunterDomain(
     : null;
 }
 
+/** Prospeo removed the old /email-finder endpoint entirely (confirmed live:
+ * it now returns {"error_code":"DEPRECATED"}). Replaced with /enrich-person,
+ * verified against a real call for a real contact (Carlos Medeiros, Vale)
+ * before trusting the shape below - the email lives at person.email.email,
+ * gated by person.email.revealed. Prospeo's own person.email.status
+ * ("VERIFIED" when it did its own bounce-check) is carried through as
+ * emailVerifiedStatus, so resolveEmail() below can skip an extra Hunter
+ * verify() call when Prospeo already confirmed deliverability. */
 async function tryProspeo(
   first: string,
   last: string,
@@ -90,20 +98,23 @@ async function tryProspeo(
 ): Promise<EmailResolution | null> {
   if (!prospeoKey || !domain) return null;
   try {
-    const res = await fetch("https://api.prospeo.io/email-finder", {
+    const res = await fetch("https://api.prospeo.io/enrich-person", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-KEY": prospeoKey },
-      body: JSON.stringify({ first_name: first, last_name: last, company: domain }),
+      body: JSON.stringify({ data: { first_name: first, last_name: last, company_website: domain } }),
     });
     const json = await res.json();
-    // Defensive parse; confirm exact field names against Prospeo's current docs
-    // before relying on this in production.
-    const resp = json?.response ?? json;
-    const email = resp?.email?.email ?? resp?.email;
-    const status = resp?.email_status ?? resp?.email?.verification?.status;
-    return typeof email === "string" && email
-      ? { email, source: "prospeo", confidence: null, status: status ?? "prospeo", companyDomain: domain, emailVerifiedStatus: "" }
-      : null;
+    if (json?.error) return null;
+    const emailInfo = json?.person?.email;
+    if (!emailInfo?.revealed || typeof emailInfo.email !== "string" || !emailInfo.email) return null;
+    return {
+      email: emailInfo.email,
+      source: "prospeo",
+      confidence: null,
+      status: emailInfo.status ?? "prospeo",
+      companyDomain: domain,
+      emailVerifiedStatus: emailInfo.status === "VERIFIED" ? "valid" : "",
+    };
   } catch {
     return null;
   }
@@ -162,8 +173,16 @@ export async function resolveEmail(
   if (!hit) hit = await tryProspeo(first, last, domain, keys.prospeoKey);
   if (!hit) hit = await tryHunterFinder(first, last, domain, keys.hunterKey);
 
+  // Skip the Hunter verify call entirely if Prospeo already confirmed the
+  // email itself (saves a Hunter credit, and matters in practice right now
+  // since Hunter's monthly search quota is exhausted - confirmed via a live
+  // 429 "too_many_requests" from the account, not assumed).
   const emailVerifiedStatus =
-    keys.verify !== false && hit ? await verify(hit.email, keys.hunterKey) : "";
+    hit?.emailVerifiedStatus === "valid"
+      ? hit.emailVerifiedStatus
+      : keys.verify !== false && hit
+        ? await verify(hit.email, keys.hunterKey)
+        : "";
 
   if (!hit) {
     return {
