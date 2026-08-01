@@ -91,14 +91,54 @@ function criterion(
   return { criterion: criterionName, label, score: round(clamp(score, 0, maxScore)), maxScore, reason };
 }
 
+/** Deterministic, code-computed check for a dispersed physical footprint - the
+ * actual driver of aerial-inspection value (the anchor account is 678 km2 of
+ * dispersed surface, which is why it worked, not its revenue). Looks for a
+ * stated area unit, explicit dispersion language, or a named surface structure
+ * whose whole failure mode is spread-out area. Returns 0-1. */
+function footprintSignal(account: Account): { score: number; reason: string } {
+  const hay = `${account.siteAreaEvidence} ${account.latamSites} ${account.opsEvidence}`.toLowerCase();
+
+  const hasAreaFigure = /\d[\d,.]*\s*(km2|km²|sq\s?km|square kilomet|hectare|ha\b|acre)/.test(hay);
+  const hasDispersion = /(dispersed|spread|multiple sites|several sites|separate sites|across \d+|network of)/.test(hay);
+  const SURFACE_STRUCTURES = ["heap leach", "leach pad", "leach pile", "evaporation pond", "tailings", "open pit", "stockpile", "solar", "pipeline", "conveyor"];
+  const structures = SURFACE_STRUCTURES.filter((s) => hay.includes(s));
+
+  const score = clamp(
+    (hasAreaFigure ? 0.5 : 0) + (hasDispersion ? 0.25 : 0) + Math.min(0.25, structures.length * 0.125),
+    0,
+    1
+  );
+  const parts = [
+    hasAreaFigure ? "a stated site area" : "no stated site area",
+    hasDispersion ? "explicit dispersion language" : "no dispersion language",
+    structures.length ? `dispersed surface structures (${structures.join(", ")})` : "no named surface structures",
+  ];
+  return { score, reason: parts.join(", ") };
+}
+
+/** ICP fit is the heaviest criterion, and `account.icpScore` is produced by the
+ * model rather than computed here - which is the one place this project's own
+ * "enforce it in code after the model call" principle wasn't followed. Rather
+ * than trust that number alone at full weight, the footprint half is now
+ * computed deterministically in code from the evidence text, and the model's
+ * similarity score carries the rest. A model that returns an inflated
+ * icp_score for a compact, non-dispersed operation can no longer earn full
+ * marks here on its own say-so. */
 function scoreIcp(account: Account): StrategyScoreComponent {
-  const score = (clamp(account.icpScore, 0, 10) / 10) * STRATEGY_POLICY.weights.icpFit;
+  const modelPortion = STRATEGY_POLICY.weights.icpFit * 0.6;
+  const footprintPortion = STRATEGY_POLICY.weights.icpFit * 0.4;
+
+  const footprint = footprintSignal(account);
+  const score =
+    (clamp(account.icpScore, 0, 10) / 10) * modelPortion + footprint.score * footprintPortion;
+
   return criterion(
     "icp_fit",
     "ICP fit against SQM",
     score,
     STRATEGY_POLICY.weights.icpFit,
-    `Account discovery scored the SQM similarity at ${account.icpScore}/10.`
+    `Model scored SQM similarity ${account.icpScore}/10 (${modelPortion} pts max). Code-computed dispersed-footprint signal ${footprint.score.toFixed(2)} (${footprintPortion} pts max): ${footprint.reason}.`
   );
 }
 

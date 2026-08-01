@@ -7,6 +7,17 @@
 // proof line cites a real, specific mechanism so pickProof can match a
 // prospect's own research signal to the closest real precedent, not just the
 // closest commodity.
+//
+// SQM entry corrected 2026-08-01 against the real case study
+// (flytbase.com/case-studies/sqm-678-km2-mine-autonomous-inspection-adentu-and-flytbase):
+// the prior line described a lithium/perimeter/tailings deployment that never
+// happened. The real deployment is caliche heap-leach irrigation and thermal
+// monitoring for iodine yield, at Nueva Victoria and Pedro de Valdivia/María
+// Elena, not the Salar de Atacama brine operation (that's SQM's lithium
+// business, a physically separate thing). Perimeter security docks were only
+// ever ordered, never deployed. The old keyword list was lithium/brine
+// weighted and had none of leach/irrigation/sprinkler/heap/caliche/thermal, so
+// it would never match the operators it should match best.
 export interface ProofPoint {
   name: string;
   line: string;
@@ -23,8 +34,23 @@ export const PROOF_LIBRARY: Record<"anglo_american" | "sqm" | "csx" | "shell", P
   sqm: {
     name: "SQM",
     line:
-      "SQM itself already runs autonomous drone-in-a-box inspection across its Chilean lithium and iodine operations for perimeter, stockpile, and tailings-adjacent monitoring without adding headcount in hazardous zones.",
-    keywords: ["lithium", "brine", "evaporation pond", "tailings", "chile", "atacama", "iodine", "perimeter"],
+      "At SQM's 678 km2 caliche operation in northern Chile, two autonomous drone missions a day now cover the leaching piles with RGB and thermal imaging, catching irrigation leaks and disconnected sprinklers within 90 minutes of a flight instead of the several days it took engineers walking the piles. Their iodine extraction gain went from 0.5% to 2%, on a system costing roughly USD 70-80k that paid back inside a year.",
+    keywords: [
+      "leach",
+      "leach pad",
+      "heap",
+      "caliche",
+      "irrigation",
+      "sprinkler",
+      "thermal",
+      "evaporation pond",
+      "brine",
+      "iodine",
+      "nitrate",
+      "chile",
+      "atacama",
+      "yield",
+    ],
   },
   csx: {
     name: "CSX",

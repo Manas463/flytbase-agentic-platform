@@ -11,6 +11,7 @@ const account: Account = {
   hqCountry: "Chile",
   latamSites: "Atacama Site, Chile",
   commodity: "Copper",
+  siteAreaEvidence: "A 450 km2 concession with dispersed heap leach pads across multiple sites.",
   scaleEvidence: "Large-scale annual production supported by a filing.",
   opsEvidence: "Continuous open-pit operations with hazardous field work.",
   whyFitVsAnchor: "Large hazardous LATAM operation.",

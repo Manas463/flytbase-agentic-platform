@@ -76,6 +76,36 @@ export async function getContactIdByEmail(runId: string, email: string): Promise
   return (data?.id as string) ?? null;
 }
 
+/** `site_area_evidence` (the dispersed-footprint evidence behind the heaviest
+ * ICP signal) is not in the `import_run_results` RPC's column list, and that
+ * function's body isn't editable from here, so it's written as an update right
+ * after the RPC has created the account rows - the same approach follow-up
+ * emails already use.
+ *
+ * Deliberately NON-FATAL. This runs at the very end of a campaign, after every
+ * API credit for the run has already been spent, and this one field is
+ * enrichment rather than core output. If the column migration hasn't been
+ * applied yet, losing the field is far better than throwing away an entire
+ * completed run. It warns loudly rather than failing or silently passing. */
+export async function updateAccountSiteArea(
+  runId: string,
+  company: string,
+  siteAreaEvidence: string
+): Promise<void> {
+  const { error } = await getSupabase()
+    .from("accounts")
+    .update({ site_area_evidence: siteAreaEvidence })
+    .eq("run_id", runId)
+    .eq("company", company);
+  if (error) {
+    console.warn(
+      `[persist] could not save site_area_evidence for "${company}": ${error.message}. ` +
+        `If this says the column does not exist, run: ` +
+        `alter table accounts add column if not exists site_area_evidence text;`
+    );
+  }
+}
+
 export async function insertFollowUpEmail(row: {
   runId: string;
   contactId: string;

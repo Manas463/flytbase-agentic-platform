@@ -27,10 +27,11 @@ export interface Account {
   hqCountry: string;
   latamSites: string;
   commodity: string;
-  scaleEvidence: string;
+  siteAreaEvidence: string; // dispersed physical footprint (km2, hectares, site count, leach-pad/pond scale) - the real driver of aerial-inspection value, distinct from company size
+  scaleEvidence: string; // company size (production / revenue / workforce)
   opsEvidence: string;
   whyFitVsAnchor: string;
-  icpScore: number; // scale 40% / hazard+24-7 ops 30% / geography 20% / tech-adoption 10%, all vs. SQM
+  icpScore: number; // model-produced similarity to SQM, weighted per skills/icpScoring.ts ICP_WEIGHTS (inspectable area 30% / hazard+24-7 ops 25% / company scale 15% / geography 15% / tech adoption 15%). NOT code-verified - see scoreIcp() in strategyAgent.ts, which only trusts this for 60% of the ICP criterion and computes the footprint half itself.
   ownershipFlags: string;
   sources: string[]; // every account MUST carry real source URLs, never fabricate
   geoOk: boolean; // confirmed by OPERATIONS, not HQ

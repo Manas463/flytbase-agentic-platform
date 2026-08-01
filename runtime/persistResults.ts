@@ -12,7 +12,12 @@
 //      way the n8n code did, it does not re-check whether a post-rewrite
 //      draft actually passed, matching existing production behavior.
 import type { Account, Contact, ResearchBrief, RunSummary } from "../agents/types.js";
-import { importRunResults, getContactIdByEmail, insertFollowUpEmail } from "../tools/supabase.js";
+import {
+  importRunResults,
+  getContactIdByEmail,
+  insertFollowUpEmail,
+  updateAccountSiteArea,
+} from "../tools/supabase.js";
 
 function toImportResearch(research: ResearchBrief | undefined) {
   if (!research) return null;
@@ -97,7 +102,19 @@ export function buildImportPayload(input: PersistResultsInput) {
 export async function persistResults(runId: string, input: PersistResultsInput): Promise<void> {
   const payload = buildImportPayload(input);
   await importRunResults(runId, payload);
+  await persistSiteAreaEvidence(runId, input);
   await persistFollowUps(runId, input);
+}
+
+/** Without this the dispersed-footprint evidence is computed, used to score the
+ * account, and then thrown away - it would never reach the dashboard, so a
+ * human reviewing why an account qualified couldn't see the single heaviest
+ * piece of evidence behind that decision. */
+async function persistSiteAreaEvidence(runId: string, input: PersistResultsInput): Promise<void> {
+  for (const account of input.accounts) {
+    if (!account.siteAreaEvidence) continue; // nothing found is normal, don't write an empty string over it
+    await updateAccountSiteArea(runId, account.company, account.siteAreaEvidence);
+  }
 }
 
 /** The RPC only ever writes the cold email (sequence_index 0). Follow-ups

@@ -20,6 +20,7 @@ interface RawAccount {
   hq_country: string;
   latam_sites: string;
   commodity: string;
+  site_area_evidence: string;
   scale_evidence: string;
   ops_evidence: string;
   why_fit_vs_anchor: string;
@@ -28,15 +29,54 @@ interface RawAccount {
   sources: string[];
 }
 
-const SEGMENTS = ["lithium", "copper", "iron ore"];
+const DEFAULT_SEGMENTS = ["lithium", "copper", "iron ore"];
+
+/** Noise words that appear in a vertical description but are not themselves a
+ * searchable segment ("large-scale mining operations in Latin America" should
+ * not produce a "large-scale" segment). */
+const VERTICAL_STOPWORDS = new Set([
+  "large", "scale", "large-scale", "small", "mid", "sized", "operations", "operation",
+  "mining", "mines", "mine", "and", "or", "in", "the", "of", "for", "with", "across",
+  "companies", "company", "producers", "producer", "sector", "industry", "latin",
+  "america", "american", "latam", "global", "major", "leading",
+]);
+
+/** Derives the commodity/segment list to search from the brief's own vertical
+ * text, instead of a hardcoded list. Before this, changing the vertical in the
+ * UI (which defaultBrief.ts explicitly advertises as overridable) had no effect
+ * at all on what the finder actually searched for - it always searched lithium,
+ * copper and iron ore. Falls back to the default trio when the vertical yields
+ * nothing usable, so a vague or empty vertical still runs the tuned default
+ * campaign rather than searching for nothing. */
+export function deriveSegments(vertical: string): string[] {
+  const cleaned = String(vertical ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s,/&-]/g, " ");
+
+  // Split on connectors people actually use in a vertical description.
+  const candidates = cleaned
+    .split(/,|\/|\band\b|\bor\b|&/)
+    .map((part) =>
+      part
+        .split(/\s+/)
+        .filter((word) => word && !VERTICAL_STOPWORDS.has(word))
+        .join(" ")
+        .trim()
+    )
+    .filter((part) => part.length > 2);
+
+  const unique = [...new Set(candidates)];
+  return unique.length ? unique.slice(0, 4) : DEFAULT_SEGMENTS;
+}
 
 export async function findAccounts(
   runId: string,
   brief: CampaignBrief,
   deps: AccountAgentDeps
 ): Promise<Account[]> {
+  const segments = deriveSegments(brief.vertical);
   const perSegment = await Promise.all(
-    SEGMENTS.map(async (segment) => {
+    segments.map(async (segment) => {
       const prompt = buildFinderPrompt(segment, brief);
       const { text, sourceUrls } = await webSearch({ apiKey: deps.openaiApiKey, model: deps.model, input: prompt });
       const structured = await structuredCall<{ accounts: RawAccount[] }>({
@@ -57,6 +97,7 @@ export async function findAccounts(
     hqCountry: r.hq_country,
     latamSites: r.latam_sites,
     commodity: r.commodity,
+    siteAreaEvidence: r.site_area_evidence ?? "",
     scaleEvidence: r.scale_evidence,
     opsEvidence: r.ops_evidence,
     whyFitVsAnchor: r.why_fit_vs_anchor,
