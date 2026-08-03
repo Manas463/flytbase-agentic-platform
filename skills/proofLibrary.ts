@@ -35,6 +35,16 @@ export const PROOF_LIBRARY: Record<"anglo_american" | "sqm" | "csx" | "shell", P
     name: "SQM",
     line:
       "At SQM's 678 km2 caliche operation in northern Chile, two autonomous drone missions a day now cover the leaching piles with RGB and thermal imaging, catching irrigation leaks and disconnected sprinklers within 90 minutes of a flight instead of the several days it took engineers walking the piles. Their iodine extraction gain went from 0.5% to 2%, on a system costing roughly USD 70-80k that paid back inside a year.",
+    // NOTE ON "lithium": the LINE above must never claim a lithium deployment
+    // (it was caliche/iodine, claiming otherwise is factually false). But the
+    // KEYWORDS are a routing table, not a claim - they decide which prospects
+    // get shown this proof. Lithium brine operators (Albemarle, Arcadium,
+    // Pilbara, SQM's own Salar de Atacama peers) are genuinely close-shape
+    // targets: large dispersed evaporation ponds, aerial-visible, yield
+    // dependent on even distribution across a huge area. SQM is the most
+    // defensible proof to show them, so lithium belongs here. Removing it
+    // once meant a lithium prospect matched this proof on nothing, which was
+    // the opposite of the intent. Keep the line factual, keep the routing wide.
     keywords: [
       "leach",
       "leach pad",
@@ -45,6 +55,9 @@ export const PROOF_LIBRARY: Record<"anglo_american" | "sqm" | "csx" | "shell", P
       "thermal",
       "evaporation pond",
       "brine",
+      "salar",
+      "salt flat",
+      "lithium",
       "iodine",
       "nitrate",
       "chile",

@@ -45,9 +45,19 @@ test("fix 1: the SQM keywords cover the heap-leach vocabulary that was missing",
   for (const required of ["leach", "irrigation", "sprinkler", "heap", "caliche", "thermal"]) {
     assert.ok(keywords.includes(required), `SQM keywords must include "${required}"`);
   }
-  // "lithium" was the single most misleading keyword: it pulled brine-operation
-  // prospects toward a proof point about caliche ore.
-  assert.ok(!keywords.includes("lithium"), 'SQM keywords must not include "lithium"');
+});
+
+test("fix 1: lithium prospects still route to SQM - keywords are routing, not claims", () => {
+  // The line must stay factual (no lithium deployment happened), but the
+  // keywords decide who SEES this proof, and lithium brine operators are
+  // genuinely close-shape SQM-like targets: dispersed evaporation ponds,
+  // aerial-visible, yield dependent on even distribution over a huge area.
+  // Excluding lithium from routing meant a lithium prospect matched nothing.
+  assert.ok(PROOF_LIBRARY.sqm.keywords.includes("lithium"), "lithium must route to the SQM proof");
+  assert.equal(
+    pickProof("A lithium brine operation with evaporation ponds across the salar.").name,
+    "SQM"
+  );
 });
 
 test("fix 1: proof matching still discriminates - it did not become SQM-for-everything", () => {
